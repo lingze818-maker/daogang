@@ -7,6 +7,7 @@ import {
   type Decision,
   type InboxReceipt,
 } from '@daogang/inbox-source'
+import { createExecutor, type ExecutorPort } from './executor.ts'
 import { createFlashRouter } from './flash.ts'
 import { replyOnMain, type MainReply } from './main-channel.ts'
 import { routeText, type FlashRouter } from './route.ts'
@@ -43,6 +44,8 @@ export interface DispatchOutput {
   reason: string
   /** 接单发生在本地 inbox，不是 DSH worker Session。 */
   runtime: 'local-inbox'
+  /** `local` 是当前执行口。`dsh` 只在显式切换适配器时出现，而且开不了会话。 */
+  executor: 'local' | 'dsh'
   audit: { id: string; file: string }
   receipts: DispatchReceipt[]
   /** 闲聊腿的主窗桩回复。任务腿失败或还在排队时它也已经留下。 */
@@ -56,6 +59,7 @@ export interface Runtime {
   inbox: LocalInbox
   flash: FlashRouter
   workers: WorkerLane
+  executor: ExecutorPort
 }
 
 export interface DispatchOptions {
@@ -80,6 +84,7 @@ export function openRuntime(home: string, env: NodeJS.ProcessEnv = process.env):
     inbox: new LocalInbox(join(home, 'inbox.json')),
     flash: createFlashRouter(env),
     workers: new WorkerLane(join(home, 'worker.json')),
+    executor: createExecutor(home, env),
   }
 }
 
@@ -171,7 +176,7 @@ export async function dispatchLine(
       continue
     }
     try {
-      const placed = placeTask(runtime, routed.decision, result.receipt, auditId)
+      const placed = await placeTask(runtime, routed.decision, result.receipt, auditId)
       if (placed.interrupt) interrupt = placed.interrupt
       receipts.push({ ...result.receipt, disposition: placed.disposition })
     } catch (error) {
@@ -221,6 +226,7 @@ export async function dispatchLine(
     via: routed.via,
     reason: routed.reason,
     runtime: 'local-inbox',
+    executor: runtime.executor.kind,
     audit: { id: audit.id, file: runtime.board.file },
     receipts,
     mainReply,
@@ -271,6 +277,7 @@ function finishClaims(
     via,
     reason: first.reason,
     runtime: 'local-inbox',
+    executor: runtime.executor.kind,
     audit: { id: first.id, file: runtime.board.file },
     receipts: [],
     mainReply: null,
@@ -329,21 +336,35 @@ async function runTask(
   }
 }
 
-function placeTask(
+async function placeTask(
   runtime: Runtime,
   decision: Decision,
   receipt: InboxReceipt,
   auditId: string,
-): { disposition: 'running' | 'queued'; interrupt: InterruptInfo | null } {
+): Promise<{ disposition: 'running' | 'queued'; interrupt: InterruptInfo | null }> {
   const summary = decision.cards.find((card) => card.kind === 'task')?.summary ?? ''
+  const ticketId = receipt.ticketId ?? ''
+  if (!ticketId) throw new Error('任务腿没有 ticket id')
   const incoming: WorkerSlot = {
-    ticketId: receipt.ticketId ?? '',
+    ticketId,
     session: receipt.session,
     auditId,
     urgency: decision.urgency,
     summary,
   }
   const planned = assignTask(runtime.workers.load(), incoming)
+  if (planned.disposition === 'running') {
+    const cards = decision.cards.filter((card) => card.kind === 'task')
+    await runtime.executor.start({
+      ticketId,
+      session: receipt.session,
+      assignmentId: auditId,
+      urgency: decision.urgency,
+      cards,
+      text: cards.map((card) => card.summary).join('\n') || summary,
+      handoffNote: '',
+    })
+  }
   if (planned.paused) {
     const paused = runtime.board.list().find((row) => row.id === planned.paused?.auditId)
     runtime.board.patch(planned.paused.auditId, {

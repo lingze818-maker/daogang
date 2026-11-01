@@ -1,7 +1,7 @@
 # 「到岗」任务清单
 
 _目标：尽快可用版 → 再做成可挂宿主的通用插件（优先级：对影 > zcode > Codex）_
-_主责：鎏涟 · 更新：2026-11-01（阶段 B：主窗桩、本地打断、招领落板）_
+_主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 
 ## 总路线
 
@@ -26,14 +26,14 @@ _主责：鎏涟 · 更新：2026-11-01（阶段 B：主窗桩、本地打断、
 
 ## 阶段 B · 实时分发 MVP（约 4–6 天）— 可用版核心
 
-**本批：** B1 的 CLI 仍可无密钥试跑。B3 的闲聊走 `main-stub` 主窗回复，和任务腿分开，任务失败或排队时回复已经留下。B4 在本地工单槽上：更高 urgency 把正在忙的工单改成 `queued`，并在那一行写下不超过 200 字的交接备注，新活变成当前；同级或更低只排队。B5 在 receive 失败时追加 `status: claim` 的招领行（`DAOGANG_FAIL_LANE=task` 用来演示离线/超时，没有真实计时器）。Cordis / Assignment 仍未接。没有自动恢复进 DSH，也没有 GIF。
+**外围可用版 `0.1.0-peripheral`：** `pnpm dispatch`、主窗桩、本地打断、招领和 `bash scripts/demo.sh` 可以无密钥演示。执行口默认 `LocalExecutor`。`DshExecutorAdapter` 只写出 Assignment 的 `start`/`launch` 和 `deliver`/`delivery` 调用点，不装 `@deepseek-ai/dsh-*`。B2 的真会话不起。GIF 先不做。
 
 - [x] B1 分发器常驻进程：输入 → `{target, urgency, cards}`（Flash 路由 + 关键词兜底）
-- [ ] B2 角色路由到 Ticket Session：派单后由底座 Assignment 起 `worker-<ticketId>` Session，按卡片注入上下文（产品层可保留多个角色，不是 3 个长驻进程）。本地 inbox 只生成会话名，尚未 `DshExecutor.start`
+- [ ] B2 角色路由到 Ticket Session：派单后由底座 Assignment 起 `worker-<ticketId>` Session，按卡片注入上下文（产品层可保留多个角色，不是 3 个长驻进程）。`ExecutorPort` 已接上，默认 `LocalExecutor` 按卡片记下派工；`DAOGANG_EXECUTOR=dsh` 只落到招领。没有真的 `DshExecutor.start`
 - [x] B3 mixed 双投：闲聊回主窗 + 任务立案，互不阻塞。主窗是本地 `main-stub`，不是底座 Channel
 - [x] B4 打断与快照：高优先级打断低优先级；看板留 ≤200 字交接备注。旧工单留在本地队列里，没有单独的 resume 命令，也没有回到 DSH
 - [x] B5 分发失败自动落板：目标离线/超时 → 转招领安全网。触发的是本地 receive 失败（含演示开关），不是底座超时探测
-- [ ] B6 Demo：README + GIF（说一句话，另一窗口立刻亮）。`scripts/demo.sh` 可以在终端里把主窗、打断和招领跑一遍，没有 GIF
+- [ ] B6 Demo：README + GIF（说一句话，另一窗口立刻亮）。GIF 先不做。终端脚本是 `scripts/demo.sh`，记录在 `docs/demo/peripheral.cast`
 
 **完成标准（可用版门槛）：** 本地 CLI 可跑；派单→首响可感秒级；至少演示打断一次并恢复。
 
@@ -88,6 +88,6 @@ _主责：鎏涟 · 更新：2026-11-01（阶段 B：主窗桩、本地打断、
 
 1. ~~G1 建仓~~ 文档引导已进仓；阶段 B 脚手架在 `packages/`
 2. ~~A1–A4~~ 已完成
-3. B1、B3 的 CLI 路径已通（主窗是桩；底座会话还没起来，B2 仍开着）
-4. B4、B5 的本地打断和招领已通；B6 还差 GIF → 齐了再宣布可用版
+3. 外围可用版已能演示派单、主窗桩、打断和招领。B2 仍开着：只有 `LocalExecutor`，没有底座会话
+4. B6 的 GIF 先不做；终端记录在 `docs/demo/peripheral.cast`
 5. 再排 C / E（插件）与 D（评测）谁先：默认 **E 的接口草图可与 C 并行**，完整适配器放在可用版之后

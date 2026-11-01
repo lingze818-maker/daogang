@@ -37,13 +37,28 @@
 
 分发器先放在外围：自己做路由、打断和 mixed 拆分，再经 Source 注入。站稳之后再考虑收成 Cordis 插件。
 
+## 外围可用版 `0.1.0-peripheral`
+
+这一版是外围 CLI，不是挂进 DeepSeek Harness 的插件。没有 API key 也能跑。
+
+今天能用：
+
+- `pnpm dispatch` / `pnpm listen`：一句话进，打出 `{target, urgency, cards}`。没设 `DEEPSEEK_API_KEY` 时用关键词；设了才请求 `deepseek-flash`，失败仍回落关键词。
+- 闲聊走 `mainReply`（通道 `main-stub`），和任务腿分开。任务排队或失败时，主窗回复已经留下。
+- 更高优先级打断正在忙的工单：那一行改成 `queued`，交接备注不超过 200 字。同级或更低只排队。
+- 接单失败追加 `"status":"claim"` 的招领行。`DAOGANG_FAIL_LANE=task` 用来演示离线或超时。
+- `bash scripts/demo.sh` 把上面串成一次终端演示。记录在 [docs/demo/peripheral.cast](docs/demo/peripheral.cast)。GIF 还没有。
+
+还是桩，**B2 的真 DSH 不在这一版**：
+
+- 默认执行口是 `LocalExecutor`（`packages/dispatcher/src/executor.ts`）。它把派工记在 `.daogang/executor.json`，会话名是 `worker-<ticketId>`。
+- `DshExecutorAdapter` 只标出上游调用点：`DshExecutor.start` → Effects `enqueue('launch', assignmentId, { ticketId, assignmentId })`，`deliver` → `enqueue('delivery', ticketId, { ticketId })`。不安装 `@deepseek-ai/dsh-*` 或 Cordis。`DAOGANG_EXECUTOR=dsh` 不会开会话，这次派工落成招领。
+- 没有 Assignment，也没有底座里的 Ticket Session。主窗不是 Channel。
+
 ## 状态
 
-阶段 B 的 CLI 能演示「派得出、有人接」，也能演示主窗回复、打断和招领。这些都还停在本地桩上。
-
 - 2026-11-01：阶段 A 完成。底座结构笔记和 MVP 边界已写入 `docs/notes/`。
-- 分发器读一句话，输出 `{target, urgency, cards}`。闲聊另给一条 `main-stub` 主窗回复，和任务腿分开。更急的新任务会把正在忙的工单标成 `queued`，并写上不超过 200 字的交接备注。接单失败会追加一条 `claim` 招领行。
-- 仍是桩：DeepSeek Harness / Cordis 未安装，没有 Assignment，也没有 `DshExecutor.start`。`worker-<ticketId>` 不是底座里的 Ticket Session。Flash 只在设置了 `DEEPSEEK_API_KEY` 时请求，失败或没密钥就用关键词。
+- 版本号写在根 `package.json` 的 `0.1.0-peripheral`。这是外围可用版，不是底座插件发布。
 
 ## 快速试跑
 
@@ -83,6 +98,8 @@ bash scripts/demo.sh
 ```
 
 脚本里发生四件事：先派一件普通任务；再派一句更急的 mixed（输出里有 `mainReply`，同时把上一张工单改成排队并写交接备注）；再派一件不急的，它只排队、不打断；最后用 `DAOGANG_FAIL_LANE=task` 让任务腿失败，看板上多一行 `"status":"claim"`。`pnpm board` 打在最后。
+
+同一段输出也录在 `docs/demo/peripheral.cast`。装了 asciinema 时可以 `asciinema play docs/demo/peripheral.cast`。需要重录时跑 `node scripts/record-cast.mjs`。没有 GIF。
 
 ## 文档
 

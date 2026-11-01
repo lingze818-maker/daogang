@@ -1,5 +1,19 @@
 export { parseDecision } from './decision.ts'
 export { loadEnvFile, readFailLane } from './env.ts'
+export {
+  createExecutor,
+  DshExecutorAdapter,
+  DshNotWiredError,
+  LocalExecutor,
+  planDshDeliver,
+  planDshStart,
+  workerSessionId,
+  type Delivery,
+  type DshCall,
+  type ExecutorAssignment,
+  type ExecutorLaunch,
+  type ExecutorPort,
+} from './executor.ts'
 export { replyOnMain, type MainReply } from './main-channel.ts'
 export { createFlashRouter } from './flash.ts'
 export { routeByRules, type Routed } from './rules.ts'
