@@ -23,7 +23,7 @@ CLI 用 `LocalInbox.receive` 模拟「有人接」：
 | 译成 Trigger（稳定 id、Thread、actor、`addressed`） | `inboxTrigger` | 字段按 Trigger 形状已有。CLI 每条输入 `addressed: direct` |
 | `scope`，未列入的对话留给面板解释 | `inboxScope` | 只看 `meta.conversation`。未注册进 Engine |
 | Policy 的 explicit | Trigger 上 `policy: 'explicit'` | 形状在。名单与准入表未进底座 Policy |
-| Channel：`send` 幂等，只有永久失败才 `gone` | — | 未做 |
+| Channel：`send` 幂等，只有永久失败才 `gone` | 分发器里的 `main-stub` | 主窗回复是本地桩，不等任务腿。不是底座 Channel.send |
 | `threadContext` | — | 未做 |
 | 插件 `apply` + 循环里 `ctx.receive` | `apply` + `LocalInbox` | `apply` 只向草图宿主 `register`。接收循环是本地 JSON 文件，不是 Cordis effect |
 | `package.json` exports、`cordis.patch.yml` insert | `cordis.patch.example.yml` | 注释示例。未安装 `@deepseek-ai/cordis` 或 `@deepseek-ai/dsh-*` |

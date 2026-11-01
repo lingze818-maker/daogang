@@ -39,11 +39,11 @@
 
 ## 状态
 
-阶段 B 已开工，CLI 能演示「派得出、有人接」。
+阶段 B 的 CLI 能演示「派得出、有人接」，也能演示主窗回复、打断和招领。这些都还停在本地桩上。
 
 - 2026-11-01：阶段 A 完成。底座结构笔记和 MVP 边界已写入 `docs/notes/`。
-- 阶段 B 本批：`packages/dispatcher` 读一句话，输出 `{target, urgency, cards}`；`packages/board` 把审计行追加到 JSONL；`packages/inbox-source` 在本地接单，任务腿回执 `worker-<ticketId>`。
-- 仍是桩：DeepSeek Harness / Cordis 未安装，没有 Assignment，也没有 `DshExecutor.start`。打断与抢占未做。Flash 只在设置了 `DEEPSEEK_API_KEY` 时请求，失败或没密钥就用关键词。
+- 分发器读一句话，输出 `{target, urgency, cards}`。闲聊另给一条 `main-stub` 主窗回复，和任务腿分开。更急的新任务会把正在忙的工单标成 `queued`，并写上不超过 200 字的交接备注。接单失败会追加一条 `claim` 招领行。
+- 仍是桩：DeepSeek Harness / Cordis 未安装，没有 Assignment，也没有 `DshExecutor.start`。`worker-<ticketId>` 不是底座里的 Ticket Session。Flash 只在设置了 `DEEPSEEK_API_KEY` 时请求，失败或没密钥就用关键词。
 
 ## 快速试跑
 
@@ -73,6 +73,16 @@ pnpm listen
 设置密钥后，同一条命令会先请求 `deepseek-flash`（思考模式关掉）。请求失败或没密钥时仍回落到关键词。变量见 `.env.example`。不要把真实密钥提交进仓库。
 
 接单回执里的 `worker-<ticketId>` 是本地会话名，用来把「有人接」跑通。它还不是底座里那个 Ticket Session。
+
+## 接着试
+
+快速试跑不用改。下面这组用一块干净目录，把主窗、打断和招领连起来。仍然不需要 API key。
+
+```bash
+bash scripts/demo.sh
+```
+
+脚本里发生四件事：先派一件普通任务；再派一句更急的 mixed（输出里有 `mainReply`，同时把上一张工单改成排队并写交接备注）；再派一件不急的，它只排队、不打断；最后用 `DAOGANG_FAIL_LANE=task` 让任务腿失败，看板上多一行 `"status":"claim"`。`pnpm board` 打在最后。
 
 ## 文档
 

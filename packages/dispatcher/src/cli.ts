@@ -2,7 +2,7 @@
 import { realpathSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { pathToFileURL } from 'node:url'
-import { loadEnvFile } from './env.ts'
+import { loadEnvFile, readFailLane } from './env.ts'
 import { DaogangError, dispatchLine, openRuntime, resolveHome } from './run.ts'
 
 interface Parsed {
@@ -58,6 +58,9 @@ const HELP = `到岗分发器
 
 无 DEEPSEEK_API_KEY 时用关键词兜底。审计写在 DAOGANG_HOME（默认 ./.daogang）。
 接单回执来自本地 inbox，不是 DSH worker Session。
+闲聊走主窗桩回复，和任务腿分开，互不等待。
+更急的新任务会把正在忙的工单改成排队，并写上不超过 200 字的交接备注。
+DAOGANG_FAIL_LANE=task 时这一腿改为招领行，而不是静默失败。
 `
 
 function fail(error: unknown): never {
@@ -80,7 +83,7 @@ async function oneLine(args: Parsed): Promise<void> {
     text = (await readStdin()).split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? ''
   }
   const runtime = openRuntime(resolveHome(args.home))
-  const output = await dispatchLine(text, runtime, { messageId: args.messageId })
+  const output = await dispatchLine(text, runtime, { messageId: args.messageId, failLane: readFailLane() })
   process.stdout.write(`${JSON.stringify(output, null, 2)}\n`)
 }
 
@@ -90,7 +93,7 @@ async function listen(args: Parsed): Promise<void> {
   const lines = createInterface({ input: process.stdin })
   for await (const line of lines) {
     if (!line.trim()) continue
-    const output = await dispatchLine(line, runtime)
+    const output = await dispatchLine(line, runtime, { failLane: readFailLane() })
     process.stdout.write(`${JSON.stringify(output)}\n`)
   }
 }

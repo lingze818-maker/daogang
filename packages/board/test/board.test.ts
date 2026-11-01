@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { Board, HANDOFF_MAX, type AuditRow } from '../src/index.ts'
+import { Board, HANDOFF_MAX, clampHandoff, type AuditRow } from '../src/index.ts'
 
 function row(handoffNote = ''): AuditRow {
   return {
@@ -43,5 +43,17 @@ describe('board', () => {
     expect(board.append(row(note)).handoffNote).toBe(note)
     expect(() => board.append(row('备'.repeat(HANDOFF_MAX + 1)))).toThrow(/200/)
     expect(board.list()).toHaveLength(1)
+  })
+
+  it('patches a handoff onto an existing row and clamps automatic notes', () => {
+    const home = mkdtempSync(join(tmpdir(), 'daogang-board-'))
+    const board = new Board(join(home, 'board.jsonl'))
+    board.append(row())
+    const note = clampHandoff(`打断：${'字'.repeat(250)}`)
+    expect(Array.from(note).length).toBe(HANDOFF_MAX)
+    const patched = board.patch('audit-1', { handoffNote: note, status: 'queued' })
+    expect(patched).toMatchObject({ id: 'audit-1', status: 'queued', handoffNote: note })
+    expect(board.list()[0]).toMatchObject({ status: 'queued', handoffNote: note })
+    expect(() => board.patch('missing', { handoffNote: '无' })).toThrow(/找不到审计行/)
   })
 })

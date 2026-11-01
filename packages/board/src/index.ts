@@ -1,2 +1,2 @@
-export { Board, type AuditRow, type BoardCard, type BoardReceipt } from './board.ts'
-export { HANDOFF_MAX, assertHandoff, handoffLength } from './handoff.ts'
+export { Board, type AuditRow, type BoardCard, type BoardReceipt, type BoardStatus } from './board.ts'
+export { HANDOFF_MAX, assertHandoff, clampHandoff, handoffLength } from './handoff.ts'
