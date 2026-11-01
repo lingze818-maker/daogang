@@ -1,6 +1,12 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+export function readFailLane(env: NodeJS.ProcessEnv = process.env): 'chat' | 'task' | undefined {
+  const value = env.DAOGANG_FAIL_LANE?.trim()
+  if (value === 'chat' || value === 'task') return value
+  return undefined
+}
+
 /** 读取 `.env`。已存在的环境变量不覆盖。不打印值。 */
 export function loadEnvFile(dir: string, env: NodeJS.ProcessEnv = process.env): void {
   const file = join(dir, '.env')

@@ -1,16 +1,38 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import { Board, type AuditRow } from '@daogang/board'
-import { LocalInbox, inboxTrigger, type Decision, type InboxReceipt } from '@daogang/inbox-source'
+import { Board, type AuditRow, type BoardStatus } from '@daogang/board'
+import {
+  LocalInbox,
+  inboxTrigger,
+  type Decision,
+  type InboxReceipt,
+} from '@daogang/inbox-source'
 import { createFlashRouter } from './flash.ts'
+import { replyOnMain, type MainReply } from './main-channel.ts'
 import { routeText, type FlashRouter } from './route.ts'
-import { charLength, INPUT_MAX } from './text.ts'
+import { charLength, clampText, INPUT_MAX } from './text.ts'
+import { assignTask, WorkerLane, type WorkerSlot } from './worker.ts'
 
 export class DaogangError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'DaogangError'
   }
+}
+
+export interface DispatchReceipt extends InboxReceipt {
+  disposition: 'running' | 'queued' | 'duplicate'
+}
+
+export interface InterruptInfo {
+  paused: { session: string; auditId: string; handoffNote: string }
+  now: { session: string; auditId: string }
+}
+
+export interface ClaimInfo {
+  id: string
+  lane: 'chat' | 'task' | 'dispatch'
+  reason: string
 }
 
 export interface DispatchOutput {
@@ -22,13 +44,28 @@ export interface DispatchOutput {
   /** 接单发生在本地 inbox，不是 DSH worker Session。 */
   runtime: 'local-inbox'
   audit: { id: string; file: string }
-  receipts: InboxReceipt[]
+  receipts: DispatchReceipt[]
+  /** 闲聊腿的主窗桩回复。任务腿失败或还在排队时它也已经留下。 */
+  mainReply: MainReply | null
+  interrupt: InterruptInfo | null
+  claims: ClaimInfo[]
 }
 
 export interface Runtime {
   board: Board
   inbox: LocalInbox
   flash: FlashRouter
+  workers: WorkerLane
+}
+
+export interface DispatchOptions {
+  now?: Date
+  messageId?: string
+  /** 演示用：这一腿在 receive 前失败，审计落成招领行。 */
+  failLane?: 'chat' | 'task'
+  /** 测试用。主窗回复已经同步留下之后才会 await。 */
+  beforeTask?: () => Promise<void>
+  onMain?: () => void
 }
 
 export function resolveHome(explicit?: string, env: NodeJS.ProcessEnv = process.env): string {
@@ -42,6 +79,7 @@ export function openRuntime(home: string, env: NodeJS.ProcessEnv = process.env):
     board: new Board(join(home, 'board.jsonl')),
     inbox: new LocalInbox(join(home, 'inbox.json')),
     flash: createFlashRouter(env),
+    workers: new WorkerLane(join(home, 'worker.json')),
   }
 }
 
@@ -57,14 +95,40 @@ function lanesOf(target: Decision['target']): Array<'chat' | 'task'> {
   return ['chat', 'task']
 }
 
+function safeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : '分发失败'
+  const oneLine = message.replace(/\s+/g, ' ').trim() || '分发失败'
+  return clampText(oneLine, 120)
+}
+
+interface LaneSuccess {
+  lane: 'chat' | 'task'
+  reply: MainReply | null
+  receipt: InboxReceipt
+}
+
+interface LaneFailure {
+  lane: 'chat' | 'task'
+  reply: MainReply | null
+  error: string
+}
+
+type LaneResult = LaneSuccess | LaneFailure
+
+function isFailure(result: LaneResult): result is LaneFailure {
+  return 'error' in result
+}
+
 /**
- * 一句话进，一条判定出，并追加一行审计。
- * mixed 会连续投两张 Trigger：闲聊进 main，任务进 worker-<ticketId>。两边都是本地调用，没有互相等待底座。
+ * 一句话进，一条判定出，并追加审计。
+ * 闲聊腿先写主窗桩回复，任务腿另走，互不等待。
+ * 更高优先级会把正在忙的工单改成 queued，并在那一行写下交接备注。
+ * receive 失败时追加招领行，不把异常吞掉。
  */
 export async function dispatchLine(
   raw: string,
   runtime: Runtime,
-  options: { now?: Date; messageId?: string } = {},
+  options: DispatchOptions = {},
 ): Promise<DispatchOutput> {
   const text = raw.trim()
   if (!text) throw new DaogangError('请输入一句话')
@@ -72,34 +136,84 @@ export async function dispatchLine(
     throw new DaogangError(`输入超过 ${INPUT_MAX} 字`)
   }
   const now = options.now ?? new Date()
-  const routed = await routeText(text, runtime.flash)
+  const at = now.toISOString()
+  let routed: Awaited<ReturnType<typeof routeText>>
+  try {
+    routed = await routeText(text, runtime.flash)
+  } catch (error) {
+    return finishClaims(runtime, text, at, fallbackDecision(), 'rules', [claimFor('dispatch', safeError(error))])
+  }
+
   const messageId = messageIdFor(text, now, options.messageId)
-  const receipts: InboxReceipt[] = []
-  for (const lane of lanesOf(routed.decision.target)) {
-    const trigger = inboxTrigger({
-      messageId,
-      at: now.toISOString(),
-      text,
-      decision: routed.decision,
-      lane,
+  const lanes = lanesOf(routed.decision.target)
+  const jobs: Array<Promise<LaneResult>> = []
+  if (lanes.includes('chat')) jobs.push(runChat(runtime, routed.decision, text, at, messageId, options))
+  if (lanes.includes('task')) jobs.push(runTask(runtime, routed.decision, text, at, messageId, options))
+  const results = await Promise.all(jobs)
+
+  const auditId = randomUUID()
+  const receipts: DispatchReceipt[] = []
+  const claims: ClaimInfo[] = []
+  let mainReply: MainReply | null = null
+  let interrupt: InterruptInfo | null = null
+
+  for (const result of results) {
+    if (result.reply) mainReply = result.reply
+    if (isFailure(result)) {
+      claims.push(claimFor(result.lane, result.error))
+      continue
+    }
+    if (result.lane === 'chat' || result.receipt.status === 'duplicate') {
+      receipts.push({
+        ...result.receipt,
+        disposition: result.receipt.status === 'duplicate' ? 'duplicate' : 'running',
+      })
+      continue
+    }
+    try {
+      const placed = placeTask(runtime, routed.decision, result.receipt, auditId)
+      if (placed.interrupt) interrupt = placed.interrupt
+      receipts.push({ ...result.receipt, disposition: placed.disposition })
+    } catch (error) {
+      claims.push(claimFor('task', safeError(error)))
+    }
+  }
+
+  const primary = receipts.length > 0
+    ? appendRow(runtime, {
+      id: auditId,
+      at,
+      input: text,
+      target: routed.decision.target,
+      urgency: routed.decision.urgency,
+      cards: routed.decision.cards,
+      via: routed.via,
+      reason: routed.reason,
+      handoffNote: '',
+      status: primaryStatus(receipts),
+      receipts,
     })
-    receipts.push(runtime.inbox.receive(trigger))
-  }
-  const duplicate = receipts.every((item) => item.status === 'duplicate')
-  const row: AuditRow = {
-    id: randomUUID(),
-    at: now.toISOString(),
-    input: text,
-    target: routed.decision.target,
-    urgency: routed.decision.urgency,
-    cards: routed.decision.cards,
-    via: routed.via,
-    reason: routed.reason,
-    handoffNote: '',
-    status: duplicate ? 'duplicate' : 'accepted',
-    receipts,
-  }
-  runtime.board.append(row)
+    : null
+
+  const storedClaims = claims.map((claim) => {
+    const row = appendRow(runtime, {
+      id: claim.id,
+      at,
+      input: text,
+      target: routed.decision.target,
+      urgency: routed.decision.urgency,
+      cards: routed.decision.cards,
+      via: routed.via,
+      reason: claim.reason,
+      handoffNote: '',
+      status: 'claim',
+      receipts: [],
+    })
+    return { ...claim, id: row.id }
+  })
+
+  const audit = primary ?? storedClaims[0]
+  if (!audit) throw new DaogangError('没有写下审计行')
   return {
     target: routed.decision.target,
     urgency: routed.decision.urgency,
@@ -107,7 +221,175 @@ export async function dispatchLine(
     via: routed.via,
     reason: routed.reason,
     runtime: 'local-inbox',
-    audit: { id: row.id, file: runtime.board.file },
+    audit: { id: audit.id, file: runtime.board.file },
     receipts,
+    mainReply,
+    interrupt,
+    claims: storedClaims,
+  }
+}
+
+function fallbackDecision(): Decision {
+  return { target: 'worker', urgency: 1, cards: [] }
+}
+
+function claimFor(lane: 'chat' | 'task' | 'dispatch', error: string): ClaimInfo {
+  const who = lane === 'chat' ? '主窗腿' : lane === 'task' ? '任务腿' : '分发'
+  return { id: randomUUID(), lane, reason: `招领：${who}失败，${error}` }
+}
+
+function finishClaims(
+  runtime: Runtime,
+  text: string,
+  at: string,
+  decision: Decision,
+  via: 'flash' | 'rules',
+  claims: ClaimInfo[],
+): DispatchOutput {
+  const stored = claims.map((claim) => {
+    const row = appendRow(runtime, {
+      id: claim.id,
+      at,
+      input: text,
+      target: decision.target,
+      urgency: decision.urgency,
+      cards: decision.cards,
+      via,
+      reason: claim.reason,
+      handoffNote: '',
+      status: 'claim',
+      receipts: [],
+    })
+    return { ...claim, id: row.id }
+  })
+  const first = stored[0]
+  if (!first) throw new DaogangError('没有写下招领行')
+  return {
+    target: decision.target,
+    urgency: decision.urgency,
+    cards: decision.cards,
+    via,
+    reason: first.reason,
+    runtime: 'local-inbox',
+    audit: { id: first.id, file: runtime.board.file },
+    receipts: [],
+    mainReply: null,
+    interrupt: null,
+    claims: stored,
+  }
+}
+
+async function runChat(
+  runtime: Runtime,
+  decision: Decision,
+  text: string,
+  at: string,
+  messageId: string,
+  options: DispatchOptions,
+): Promise<LaneResult> {
+  const summary = decision.cards.find((card) => card.kind === 'chat')?.summary ?? text
+  const reply = replyOnMain({ summary, at })
+  options.onMain?.()
+  try {
+    if (options.failLane === 'chat') throw new Error('目标离线或超时')
+    const receipt = runtime.inbox.receive(inboxTrigger({
+      messageId,
+      at,
+      text,
+      decision,
+      lane: 'chat',
+    }))
+    return { lane: 'chat', reply, receipt }
+  } catch (error) {
+    return { lane: 'chat', reply, error: safeError(error) }
+  }
+}
+
+async function runTask(
+  runtime: Runtime,
+  decision: Decision,
+  text: string,
+  at: string,
+  messageId: string,
+  options: DispatchOptions,
+): Promise<LaneResult> {
+  try {
+    if (options.beforeTask) await options.beforeTask()
+    if (options.failLane === 'task') throw new Error('目标离线或超时')
+    const receipt = runtime.inbox.receive(inboxTrigger({
+      messageId,
+      at,
+      text,
+      decision,
+      lane: 'task',
+    }))
+    return { lane: 'task', reply: null, receipt }
+  } catch (error) {
+    return { lane: 'task', reply: null, error: safeError(error) }
+  }
+}
+
+function placeTask(
+  runtime: Runtime,
+  decision: Decision,
+  receipt: InboxReceipt,
+  auditId: string,
+): { disposition: 'running' | 'queued'; interrupt: InterruptInfo | null } {
+  const summary = decision.cards.find((card) => card.kind === 'task')?.summary ?? ''
+  const incoming: WorkerSlot = {
+    ticketId: receipt.ticketId ?? '',
+    session: receipt.session,
+    auditId,
+    urgency: decision.urgency,
+    summary,
+  }
+  const planned = assignTask(runtime.workers.load(), incoming)
+  if (planned.paused) {
+    const paused = runtime.board.list().find((row) => row.id === planned.paused?.auditId)
+    runtime.board.patch(planned.paused.auditId, {
+      handoffNote: planned.handoffNote,
+      status: 'queued',
+      receipts: (paused?.receipts ?? []).map((item) => (
+        item.lane === 'task' ? { ...item, disposition: 'queued' as const } : item
+      )),
+    })
+  }
+  runtime.workers.save(planned.state)
+  return {
+    disposition: planned.disposition,
+    interrupt: planned.paused
+      ? {
+        paused: {
+          session: planned.paused.session,
+          auditId: planned.paused.auditId,
+          handoffNote: planned.handoffNote,
+        },
+        now: { session: incoming.session, auditId },
+      }
+      : null,
+  }
+}
+
+function primaryStatus(receipts: DispatchReceipt[]): BoardStatus {
+  if (receipts.every((item) => item.status === 'duplicate')) return 'duplicate'
+  const task = receipts.find((item) => item.lane === 'task')
+  const chat = receipts.find((item) => item.lane === 'chat')
+  if (task && !chat && task.disposition === 'queued') return 'queued'
+  return 'accepted'
+}
+
+function appendRow(runtime: Runtime, row: AuditRow): AuditRow {
+  try {
+    return runtime.board.append(row)
+  } catch (error) {
+    if (row.status === 'claim') throw error
+    return runtime.board.append({
+      ...row,
+      id: randomUUID(),
+      status: 'claim',
+      receipts: [],
+      handoffNote: '',
+      reason: `招领：审计写入失败，${safeError(error)}`,
+    })
   }
 }

@@ -16,3 +16,13 @@ export function assertHandoff(note: string): string {
   }
   return note
 }
+
+/** 自动生成的打断备注超长时截到 200 字。人工写入仍走 assertHandoff，超长直接拒绝。 */
+export function clampHandoff(note: string): string {
+  if (typeof note !== 'string') {
+    throw new Error('交接备注必须是字符串')
+  }
+  const chars = Array.from(note)
+  if (chars.length <= HANDOFF_MAX) return note
+  return chars.slice(0, HANDOFF_MAX).join('')
+}
