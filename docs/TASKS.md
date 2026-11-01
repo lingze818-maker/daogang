@@ -59,7 +59,7 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 > 宿主无关协议先定，再写适配器，避免绑死本家。
 > **宿主优先级（灵泽 2026-11-01）：对影 > zcode > Codex；对影适配与鎏虹协调。**
 
-- [ ] E1 定义宿主适配接口：`HostAdapter`（发消息 / 开会话 / 打断 / 读上下文 / 鉴权）
+- [-] E1 定义宿主适配接口：`HostAdapter`（发消息 / 开会话 / 打断 / 读上下文 / 鉴权）。**部分完成：** 接口和 `LocalCliHost` 在 `packages/host-adapter`，默认仍是本地 CLI。`DuiyingHost` 只是未接线桩。笔记：[notes/HostAdapter-对影-2026-11-01.md](./notes/HostAdapter-对影-2026-11-01.md)
 - [ ] E2 抽出核心包：`dispatcher` + `board` + `worker-runtime`（与 UI/CLI 解耦）
 - [ ] E3 **对影（duiying）适配器**（优先协调：与鎏虹对齐接口；能挂最好）
 - [ ] E4 **zcode 适配器**（灵泽日常环境）
@@ -90,4 +90,4 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 2. ~~A1–A4~~ 已完成
 3. 外围可用版已能演示派单、主窗桩、打断和招领。B2 仍半开：默认 `LocalExecutor`；可选 `DAOGANG_DSH_ROOT` 只接到 enqueue，没有底座会话
 4. B6 的 GIF 先不做；终端记录在 `docs/demo/peripheral.cast`
-5. 再排 C / E（插件）与 D（评测）谁先：默认 **E 的接口草图可与 C 并行**，完整适配器放在可用版之后
+5. E1 的接口骨架已在 `packages/host-adapter`（默认 Local；对影桩未接线）。完整适配器仍和 C 并行，放在可用版之后
