@@ -9,7 +9,6 @@ import {
   createHost,
   DuiyingHost,
   DuiyingLinkError,
-  DuiyingNotWiredError,
   HostAdapterError,
   LocalCliHost,
 } from '../src/index.ts'
@@ -159,7 +158,7 @@ describe('DuiyingHost', () => {
     expect((error as Error).message).toContain('连不上')
     expect((error as Error).message).toContain('/api/health')
     expect((error as Error).message).not.toMatch(/\/home\/|\/Users\/|workspace/)
-    await expect(host.sendMessage({ sessionId: 'main', text: '你好' })).rejects.toBeInstanceOf(DuiyingNotWiredError)
+    await expect(host.sendMessage({ sessionId: 'main', text: '你好' })).rejects.toThrow(/DAOGANG_DUIYING_SECRET/)
     await expect(host.proveWake()).rejects.toThrow(/DAOGANG_DUIYING_SECRET/)
     expect(() => new DuiyingHost({ home: dir, env: {}, baseUrl: 'http://example.com:8765' })).not.toThrow()
     await expect(new DuiyingHost({ home: dir, env: {}, baseUrl: 'http://example.com:8765' }).checkHealth())
@@ -280,17 +279,15 @@ describe('DuiyingHost', () => {
     }
   })
 
-  it('accepts the daogang-local secret file and still refuses window send', async () => {
+  it('accepts the daogang-local secret file and still fails closed without a server', async () => {
     const dir = home()
     writeFileSync(join(dir, 'duiying.local.json'), `${JSON.stringify({ secret: 'file-secret' })}\n`)
     const host = new DuiyingHost({ home: dir, env: {} })
     const auth = await host.auth()
     expect(auth.state).toBe('anonymous')
     expect(auth.detail).not.toContain('file-secret')
-    await expect(host.sendMessage({ sessionId: 'worker-abcd1234', text: '一句' })).rejects.toMatchObject({
-      name: 'DuiyingNotWiredError',
-      method: 'sendMessage',
-    })
+    await host.openSession({ kind: 'worker', ticketId: 'abcd1234' })
+    await expect(host.sendMessage({ sessionId: 'worker-abcd1234', text: '一句' })).rejects.toThrow(/\/api\/daogang\/inject/)
   })
 })
 

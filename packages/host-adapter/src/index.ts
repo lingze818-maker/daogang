@@ -20,6 +20,16 @@ export {
   type Urgency,
 } from './adapter.ts'
 export { DuiyingHost, DuiyingLinkError, DuiyingNotWiredError, type DuiyingHostOptions } from './duiying.ts'
+export {
+  peripheralDispatchPort,
+  startDuiyingUserHook,
+  DUIYING_HOOK_DEFAULT_PORT,
+  DUIYING_HOOK_PATH,
+  type DuiyingHookOptions,
+  type DuiyingUserHook,
+  type DuiyingUserLine,
+  type DuiyingUserPort,
+} from './user-hook.ts'
 export { LocalCliHost } from './local-cli.ts'
 
 /** 默认 `local-cli`。对影要显式传入，并且需要到岗自己的目录来放映射。 */
