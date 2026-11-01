@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url'
  * 从 DAOGANG_DSH_ROOT 指向的 dsh-superagent-prototype 克隆里加载 `DshExecutor`。
  * 只动态 import 固定相对路径，不把上游仓复制进本仓，顶层也不依赖 `@deepseek-ai/dsh-*`。
  * 站位宿主只提供 effects.handle / enqueue。不调用 handler，因此不会跑进私有 launch()。
+ * 站位队列不写底座 SQLite。落库探测在 `scripts/check-effects.mjs`，用克隆里的 Store 和未启动的 Effects。
  */
 
 const CANDIDATES = ['lib/executor/dsh.js', 'src/executor/dsh.js', 'src/executor/dsh.ts'] as const

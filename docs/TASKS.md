@@ -1,7 +1,7 @@
 # 「到岗」任务清单
 
 _目标：尽快可用版 → 再做成可挂宿主的通用插件（优先级：对影 > zcode > Codex）_
-_主责：鎏涟 · 更新：2026-11-02（C1 挂载路径；对影 #59 真调）_
+_主责：鎏涟 · 更新：2026-11-02（B2 effect 表与公开 prompt 层；C1 挂载路径；对影 #59 真调）_
 
 ## 总路线
 
@@ -26,10 +26,10 @@ _主责：鎏涟 · 更新：2026-11-02（C1 挂载路径；对影 #59 真调）
 
 ## 阶段 B · 实时分发 MVP（约 4–6 天）— 可用版核心
 
-**外围可用版 `0.1.0-peripheral`：** `pnpm dispatch`、主窗桩、本地打断、招领和 `bash scripts/demo.sh` 可以无密钥、无 DSH 安装演示。执行口默认 `LocalExecutor`。设了 `DAOGANG_DSH_ROOT` 时，`DshExecutorAdapter` 按路径调用克隆里的 `start`→`enqueue('launch')` 与 `deliver`→`enqueue('delivery')`；没设时仍是未接线并落招领。真 worker Session 不起。GIF 先不做。
+**外围可用版 `0.1.0-peripheral`：** `pnpm dispatch`、主窗桩、本地打断、招领和 `bash scripts/demo.sh` 可以无密钥、无 DSH 安装演示。执行口默认 `LocalExecutor`。设了 `DAOGANG_DSH_ROOT` 时，`DshExecutorAdapter` 按路径调用克隆里的 `start`→`enqueue('launch')` 与 `deliver`→`enqueue('delivery')`；没设时仍是未接线并落招领。适配器用的是站位 effects，不写底座 SQLite。要看 `effect` 表里的行，跑 `scripts/check-effects.mjs`。真 worker Session 不起。GIF 先不做。
 
 - [x] B1 分发器常驻进程：输入 → `{target, urgency, cards}`（Flash 路由 + 关键词兜底）
-- [ ] B2 角色路由到 Ticket Session：派单后由底座 Assignment 起 `worker-<ticketId>` Session，按卡片注入上下文（产品层可保留多个角色，不是 3 个长驻进程）。**默认 Local。** `LocalExecutor` 按卡片记下派工。可选 `DAOGANG_DSH_ROOT`（或 `DAOGANG_EXECUTOR=dsh` 且给出该根）时，适配器动态加载克隆里的 `DshExecutor`，只调用公开的 `start` / `deliver`，确认 enqueue 了 `launch` / `delivery`。未设置根目录时抛未接线并落招领。`pnpm test` 不装 dsh、不读这个变量。还没有活的 worker Session，卡片没有进 worker prompt。`configured()` 已在上游克隆 `6337fc8` 上无密钥核对：空 settings 时 `Setup.run` 返回 false，`configured()` 为 false，原因是 GitHub `repositoryUnset`；空飞书 CLI 不单独挡住；`SETUP_FIELDS` 没有 `inbox`。这不是 Cordis 进程里的一轮，enqueue 也没有写进底座 SQLite
+- [ ] B2 角色路由到 Ticket Session：派单后由底座 Assignment 起 `worker-<ticketId>` Session，按卡片注入上下文（产品层可保留多个角色，不是 3 个长驻进程）。**默认 Local。** `LocalExecutor` 按卡片记下派工。可选 `DAOGANG_DSH_ROOT`（或 `DAOGANG_EXECUTOR=dsh` 且给出该根）时，适配器动态加载克隆里的 `DshExecutor`，只调用公开的 `start` / `deliver`，确认 enqueue 了 `launch` / `delivery`。未设置根目录时抛未接线并落招领。`pnpm test` 不装 dsh、不读这个变量。还没有活的 worker Session。适配器里的 effects 仍是站位，不写底座 SQLite，也不进私有 `launch()`。公开 enqueue 载荷只有 `ticketId` 和 `assignmentId`，放不下卡片。**2026-11-02** 在上游 `6337fc8` 上无密钥跑过 `scripts/check-effects.mjs`（克隆已 `pnpm install`；没设根目录则跳过并退出 0）：用公开的 `Store` 加未调用 `start()` 的 `Effects` 接上 `DshExecutor.start` / `deliver`，临时库 `effect` 表留下 `launch` 与 `delivery`，`attempts` 为 0，`sessions.prompt` 没有被调用。不调用 `Effects.start()` 是故意的：handler 一跑，没有对应 pending Assignment 的行会被删掉；票数据齐全时则会进入私有 `launch()`。写这张表不需要 Cordis / Runtime。卡片进首条 worker 消息的公开层是 `triggerMessage` 读的 Trigger.`text`（不读 `meta`）、explicit 时 `ticketExecution` 把 accept `note` 写进的 `execution.assignment`，以及 `inputMessage` 对 `kind: 'text'` 原样返回的正文。inbox 把本腿卡片写进 `text` 和 `meta.cards`（标记 `[daogang-cards]`）。探测确认这三段经上述公开函数后仍含卡片摘要。私有 `launch()` / `deliverInput()` 才调用 `sessions.prompt`，这一步不调用。本机 Node 解析不了 `delivery.ts` 的 `await using`，因此没有构造 `Runtime`
 - [x] B3 mixed 双投：闲聊回主窗 + 任务立案，互不阻塞。主窗是本地 `main-stub`，不是底座 Channel
 - [x] B4 打断与快照：高优先级打断低优先级；看板留 ≤200 字交接备注。旧工单留在本地队列里，没有单独的 resume 命令，也没有回到 DSH
 - [x] B5 分发失败自动落板：目标离线/超时 → 转招领安全网。触发的是本地 receive 失败（含演示开关），不是底座超时探测
@@ -39,7 +39,7 @@ _主责：鎏涟 · 更新：2026-11-02（C1 挂载路径；对影 #59 真调）
 
 ## 阶段 C · 挂上 dsh-superagent（约 3–5 天）
 
-- [ ] C1 分发器做成 Source 插件或外围服务（Panel 只作运维面，不引入 bridge）。**第一步（挂载路径，2026-11-02）：** `packages/inbox-source` 按 cookbook 用 `file:` 或 `link:` 挂到本机 DSH 克隆，默认 `disabled: true`，入口是 `lib/index.js`。说明在该包 README。无密钥已核对：包能被 `file:` / `link:` 解析；`dsh@0.2.1-rc.3` 对临时 web profile 的 `plugin add`（先 `file:` 再 `link:`）成功，`--dump-config` 组合出 `daogang-inbox` 且 `disabled: true`，进程没启动、profile 里没有 dsh-superagent；Cordis loader 在 `disabled: true` 时不加载、打开后会 `register`，且 `configured() === false` 时只报 `setupPending`；克隆里的 `SourceRegistry` 接受 Zod schema，拒绝只有 `parse` 的 schema；`Setup.configured()` 在没有 GitHub 仓库时为 false。没有活 Session。复跑：`DAOGANG_DSH_ROOT=<克隆> node scripts/check-inbox-attach.mjs`（不读密钥；`pnpm test` 不跑这一段）
+- [ ] C1 分发器做成 Source 插件或外围服务（Panel 只作运维面，不引入 bridge）。**第一步（挂载路径，2026-11-02）：** `packages/inbox-source` 按 cookbook 用 `file:` 或 `link:` 挂到本机 DSH 克隆，默认 `disabled: true`，入口是 `lib/index.js`。说明在该包 README。无密钥已核对：包能被 `file:` / `link:` 解析；`dsh@0.2.1-rc.3` 对临时 web profile 的 `plugin add`（先 `file:` 再 `link:`）成功，`--dump-config` 组合出 `daogang-inbox` 且 `disabled: true`，进程没启动、profile 里没有 dsh-superagent；Cordis loader 在 `disabled: true` 时不加载、打开后会 `register`，且 `configured() === false` 时只报 `setupPending`；克隆里的 `SourceRegistry` 接受 Zod schema，拒绝只有 `parse` 的 schema；`Setup.configured()` 在没有 GitHub 仓库时为 false。没有活 Session。复跑：`DAOGANG_DSH_ROOT=<克隆> node scripts/check-inbox-attach.mjs`（不读密钥；`pnpm test` 不跑这一段）。**同一天补了一段假 orchestrator：** `scripts/check-effects.mjs` 用克隆里的 Cordis `Context.plugin`（不是 plugin-loader 读补丁，也不是 `Runtime`）加载本插件。`configured()` 为 false 时只报 `setupPending` 且不 `receive`；为 true 时 `receive` 拿到带卡片的 Trigger。`cordis.patch.yml` 仍是 `disabled: true`。Runtime 整链仍然没有：本机 Node 加载 `src/app/runtime.ts` 会在 `await using` 上失败
 - [ ] C2 独立 repo 或 PR；打 `dsh-superagent` topic
 - [ ] C3 若底座接口不稳：降级为「兼容 dsh 的独立工具」，不阻塞阶段 D
 
@@ -88,6 +88,6 @@ _主责：鎏涟 · 更新：2026-11-02（C1 挂载路径；对影 #59 真调）
 
 1. ~~G1 建仓~~ 文档引导已进仓；阶段 B 脚手架在 `packages/`
 2. ~~A1–A4~~ 已完成
-3. 外围可用版已能演示派单、主窗桩、打断和招领。B2 仍半开：默认 `LocalExecutor`；可选 `DAOGANG_DSH_ROOT` 只接到 enqueue，没有底座会话
+3. 外围可用版已能演示派单、主窗桩、打断和招领。B2 仍半开：默认 `LocalExecutor`；适配器的 enqueue 仍是站位。设了 `DAOGANG_DSH_ROOT` 时可跑 `scripts/check-effects.mjs`，证明 `effect` 行能留下，卡片停在公开 prompt 文本，没有活 Session
 4. B6 的 GIF 先不做；终端记录在 `docs/demo/peripheral.cast`
-5. E1 接口在 `packages/host-adapter`（默认 Local）。对影 #59 已合入，进窗和用户话的 loopback 真调已通过。完整跨宿主适配仍和 C 并行。C1 的挂载说明已可按步骤做，活 Session 还没有
+5. E1 接口在 `packages/host-adapter`（默认 Local）。对影 #59 已合入，进窗和用户话的 loopback 真调已通过。完整跨宿主适配仍和 C 并行。C1 的挂载说明已可按步骤做。假 orchestrator 的 `receive` 已在 Cordis Context 上对过。活 Session 和 Runtime 整链还没有
