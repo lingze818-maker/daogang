@@ -13,7 +13,14 @@ function run(args: string[], input?: string, home = mkdtempSync(join(tmpdir(), '
     cwd: home,
     input,
     encoding: 'utf8',
-    env: { ...process.env, DAOGANG_HOME: home, DEEPSEEK_API_KEY: '', DAOGANG_FAIL_LANE: '' },
+    env: {
+      ...process.env,
+      DAOGANG_HOME: home,
+      DEEPSEEK_API_KEY: '',
+      DAOGANG_FAIL_LANE: '',
+      DAOGANG_EXECUTOR: 'local',
+      DAOGANG_DSH_ROOT: '',
+    },
   })
   return { ...result, home }
 }
@@ -45,7 +52,14 @@ describe('cli', () => {
     const listed = spawnSync(process.execPath, [cli, 'board'], {
       cwd: result.home,
       encoding: 'utf8',
-      env: { ...process.env, DAOGANG_HOME: result.home, DEEPSEEK_API_KEY: '', DAOGANG_FAIL_LANE: '' },
+      env: {
+        ...process.env,
+        DAOGANG_HOME: result.home,
+        DEEPSEEK_API_KEY: '',
+        DAOGANG_FAIL_LANE: '',
+        DAOGANG_EXECUTOR: 'local',
+        DAOGANG_DSH_ROOT: '',
+      },
     })
     expect(listed.status).toBe(0)
     expect(listed.stdout).toContain(output.receipts[0]?.session)
@@ -72,7 +86,14 @@ describe('cli', () => {
     const failed = spawnSync(process.execPath, [cli, 'dispatch', '--', '帮我排查安装'], {
       cwd: home,
       encoding: 'utf8',
-      env: { ...process.env, DAOGANG_HOME: home, DEEPSEEK_API_KEY: '', DAOGANG_FAIL_LANE: 'task' },
+      env: {
+        ...process.env,
+        DAOGANG_HOME: home,
+        DEEPSEEK_API_KEY: '',
+        DAOGANG_FAIL_LANE: 'task',
+        DAOGANG_EXECUTOR: 'local',
+        DAOGANG_DSH_ROOT: '',
+      },
     })
     expect(failed.status).toBe(0)
     const claim = JSON.parse(failed.stdout) as { claims: { reason: string }[] }
@@ -80,7 +101,14 @@ describe('cli', () => {
     const board = spawnSync(process.execPath, [cli, 'board'], {
       cwd: home,
       encoding: 'utf8',
-      env: { ...process.env, DAOGANG_HOME: home, DEEPSEEK_API_KEY: '', DAOGANG_FAIL_LANE: '' },
+      env: {
+        ...process.env,
+        DAOGANG_HOME: home,
+        DEEPSEEK_API_KEY: '',
+        DAOGANG_FAIL_LANE: '',
+        DAOGANG_EXECUTOR: 'local',
+        DAOGANG_DSH_ROOT: '',
+      },
     })
     expect(board.stdout).toContain('"status":"queued"')
     expect(board.stdout).toContain('"status":"claim"')

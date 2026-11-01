@@ -49,11 +49,13 @@
 - 接单失败追加 `"status":"claim"` 的招领行。`DAOGANG_FAIL_LANE=task` 用来演示离线或超时。
 - `bash scripts/demo.sh` 把上面串成一次终端演示。记录在 [docs/demo/peripheral.cast](docs/demo/peripheral.cast)。GIF 还没有。
 
-还是桩，**B2 的真 DSH 不在这一版**：
+**B2 仍半开。** 默认没有真 DSH 会话。可选根目录只把 `start` / `deliver` 的 enqueue 接上，不拉起 worker。
 
-- 默认执行口是 `LocalExecutor`（`packages/dispatcher/src/executor.ts`）。它把派工记在 `.daogang/executor.json`，会话名是 `worker-<ticketId>`。
-- `DshExecutorAdapter` 只标出上游调用点：`DshExecutor.start` → Effects `enqueue('launch', assignmentId, { ticketId, assignmentId })`，`deliver` → `enqueue('delivery', ticketId, { ticketId })`。不安装 `@deepseek-ai/dsh-*` 或 Cordis。`DAOGANG_EXECUTOR=dsh` 不会开会话，这次派工落成招领。
-- 没有 Assignment，也没有底座里的 Ticket Session。主窗不是 Channel。
+- 默认执行口是 `LocalExecutor`（`packages/dispatcher/src/executor.ts`）。它把派工记在 `.daogang/executor.json`，会话名是 `worker-<ticketId>`。不需要密钥，也不需要 clone 底座。
+- `DAOGANG_EXECUTOR=dsh` 且没设 `DAOGANG_DSH_ROOT`：和以前一样，抛出「DSH 未接线」，这次派工落成招领。
+- 设了 `DAOGANG_DSH_ROOT`（且没有把执行口显式锁成 `local`）：适配器按路径加载该克隆里的 `DshExecutor`，调用 `start` → `enqueue('launch', assignmentId, { ticketId, assignmentId })`，`deliver` → `enqueue('delivery', ticketId, { ticketId })`。入队记在到岗侧的站位 effects 上，不写底座 SQLite，也不进私有 `launch()`。克隆加载失败同样落招领。
+- 卡片仍在审计行里。上游把卡片写进 worker prompt 的逻辑在私有 `launch()`，这一步不调用。
+- inbox Source 有可插入的 `cordis.patch.yml` 和 `apply`（登记带 `scope` 的 kind，循环里 `receive`）。本地 `LocalInbox` 仍是 CLI 的接单路径。`configured()` 和 Cordis 整链 **未验证**。
 
 ## 状态
 
@@ -88,6 +90,35 @@ pnpm listen
 设置密钥后，同一条命令会先请求 `deepseek-flash`（思考模式关掉）。请求失败或没密钥时仍回落到关键词。变量见 `.env.example`。不要把真实密钥提交进仓库。
 
 接单回执里的 `worker-<ticketId>` 是本地会话名，用来把「有人接」跑通。它还不是底座里那个 Ticket Session。
+
+## 两条路
+
+### 纯外围演示
+
+不设置 `DAOGANG_DSH_ROOT`，也不要 `DAOGANG_EXECUTOR=dsh`。上面的 `pnpm test`、`pnpm dispatch` 和 `bash scripts/demo.sh` 都走这条路。`scripts/demo.sh` 会把执行口锁成 `local` 并清空 `DAOGANG_DSH_ROOT`，避免外壳里已经导出的根目录把演示带进适配器。
+
+### 可选：指向本机 DSH 克隆
+
+底座仓库单独 clone，不要复制进本仓。`@deepseek-ai/cordis` 与 `@deepseek-ai/dsh-*` 不是本仓的 dependencies，也不是 peerDependencies（pnpm 会把可选 peer 装进锁文件）。要让 Cordis 解析到本包，在那个克隆里用 `file:` 或 `pnpm link` 指向 `packages/inbox-source`。
+
+```bash
+# 终端 A：上游自己的目录，按它的 README 安装依赖。本仓测试不需要这一步。
+git clone https://github.com/deepseek-ai/dsh-superagent-prototype.git
+cd dsh-superagent-prototype
+
+# 终端 B：本仓
+export DAOGANG_DSH_ROOT=/绝对路径/dsh-superagent-prototype
+pnpm dispatch -- "帮我补上安装说明"
+```
+
+成功时输出里 `executor` 是 `dsh`，回执会话名仍是 `worker-<ticketId>`。这只说明克隆里的 `DshExecutor.start` 对站位 `effects.enqueue('launch', …)` 被调用了。失败时标准输出里有招领行，原因以 `DSH 加载失败` 或 `DSH 未接线` 开头。
+
+插件文件在 `packages/inbox-source/cordis.patch.yml`，默认 `disabled: true`。profile 里另写 `id: daogang-inbox` 且 `disabled: false` 才会启用。本包入口是 TypeScript 源文件，不是 cookbook 里的 `lib/*.js`。下面几件事没有在真实 Cordis 进程里跑过，保持 **未验证**：
+
+- `configured()` 在没有 GitHub / 飞书账号时会不会挡住 Source
+- `SourceRegistry` 是否接受这里的非 Zod `schema`
+- enqueue 是否写进底座 Effects 的 SQLite，以及 worker Session 会不会起来
+- 卡片文本有没有进入 worker prompt
 
 ## 接着试
 

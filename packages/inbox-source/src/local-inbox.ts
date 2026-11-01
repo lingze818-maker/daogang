@@ -20,7 +20,7 @@ interface InboxFile {
  * `SourceContext.receive` 的本地替身。
  * 任务腿分配 `worker-<ticketId>`；闲聊腿记到 `main`。
  * 同一 Trigger id 再投一次返回 duplicate，不新开票。
- * 这里没有调用底座 Assignment 或 DshExecutor.start。
+ * 这里没有调用底座 Assignment 或 DshExecutor.start。派工在分发器的执行口。
  */
 export class LocalInbox {
   readonly file: string

@@ -44,7 +44,7 @@ export interface DispatchOutput {
   reason: string
   /** 接单发生在本地 inbox，不是 DSH worker Session。 */
   runtime: 'local-inbox'
-  /** `local` 是当前执行口。`dsh` 只在显式切换适配器时出现，而且开不了会话。 */
+  /** `local` 是默认执行口。`dsh` 是适配器：没根目录时落招领；有根目录时只表示 enqueue 被调用过。 */
   executor: 'local' | 'dsh'
   audit: { id: string; file: string }
   receipts: DispatchReceipt[]
