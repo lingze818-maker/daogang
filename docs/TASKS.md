@@ -1,7 +1,7 @@
 # 「到岗」任务清单
 
 _目标：尽快可用版 → 再做成可挂宿主的通用插件（优先级：对影 > zcode > Codex）_
-_主责：鎏涟 · 更新：2026-11-01 20:45（北京时间）；同日文档进公开仓时勾上 G1。尚无应用代码。_
+_主责：鎏涟 · 更新：2026-11-01（阶段 B 脚手架进仓）；同日文档进公开仓时勾上 G1。_
 
 ## 总路线
 
@@ -26,8 +26,10 @@ _主责：鎏涟 · 更新：2026-11-01 20:45（北京时间）；同日文档�
 
 ## 阶段 B · 实时分发 MVP（约 4–6 天）— 可用版核心
 
-- [ ] B1 分发器常驻进程：输入 → `{target, urgency, cards}`（Flash 路由 + 关键词兜底）
-- [ ] B2 角色路由到 Ticket Session：派单后由底座 Assignment 起 `worker-<ticketId>` Session，按卡片注入上下文（产品层可保留多个角色，不是 3 个长驻进程）
+**本批：** B1 的外围 CLI 已可跑（`pnpm dispatch` 一行进、JSON 出、审计行落盘；`pnpm listen` 常驻读标准输入）。没设 `DEEPSEEK_API_KEY` 时只走关键词；设了才请求 `deepseek-flash`，失败回落规则。inbox 是本地接单桩，回执里有 `worker-<ticketId>`，底座 Assignment 未接。看板是 JSONL，交接备注字段限 200 字，打断/抢占未做。
+
+- [x] B1 分发器常驻进程：输入 → `{target, urgency, cards}`（Flash 路由 + 关键词兜底）
+- [ ] B2 角色路由到 Ticket Session：派单后由底座 Assignment 起 `worker-<ticketId>` Session，按卡片注入上下文（产品层可保留多个角色，不是 3 个长驻进程）。本地 inbox 只生成会话名，尚未 `DshExecutor.start`
 - [ ] B3 mixed 双投：闲聊回主窗 + 任务立案，互不阻塞
 - [ ] B4 打断与快照：高优先级打断低优先级；看板留 ≤200 字交接备注
 - [ ] B5 分发失败自动落板：目标离线/超时 → 转招领安全网
@@ -77,15 +79,15 @@ _主责：鎏涟 · 更新：2026-11-01 20:45（北京时间）；同日文档�
 
 ## 并行杂项（随时）
 
-- [x] G1 GitHub 建仓 + README / LICENSE(MIT) / .gitignore（本批只有文档，尚无 MVP 代码）
+- [x] G1 GitHub 建仓 + README / LICENSE(MIT) / .gitignore（建仓时只有文档；阶段 B 脚手架在 `packages/`）
 - [ ] G2 交接目录 `/workspace/projects/daogang/README.md` 每阶段更新
 - [ ] G3 不可逆操作（公开仓、删仓、force-push）先问灵泽
 - [ ] G4 真实对话样本永不进仓
 
 ## 建议开工顺序（本周）
 
-1. ~~G1 建仓~~ 文档引导已进仓（无应用代码）
+1. ~~G1 建仓~~ 文档引导已进仓；阶段 B 脚手架在 `packages/`
 2. ~~A1–A4~~ 已完成
-3. B1–B3（先通「派得出、有人接」）
+3. B1 外围 CLI 已通；继续 B2–B3（「派得出、有人接」目前停在本地桩，底座会话还没起来）
 4. B4–B6（打断 + demo）→ **宣布可用版**
 5. 再排 C / E（插件）与 D（评测）谁先：默认 **E 的接口草图可与 C 并行**，完整适配器放在可用版之后
