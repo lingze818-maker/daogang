@@ -29,6 +29,15 @@ importers:
         specifier: workspace:*
         version: link:../inbox-source
 
+  packages/host-adapter:
+    dependencies:
+      '@daogang/board':
+        specifier: workspace:*
+        version: link:../board
+      '@daogang/dispatcher':
+        specifier: workspace:*
+        version: link:../dispatcher
+
   packages/inbox-source: {}
 
 packages:

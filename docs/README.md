@@ -5,8 +5,9 @@
 | 文档 | 内容 |
 | --- | --- |
 | [开发预案-到岗-2026-11-01.md](./开发预案-到岗-2026-11-01.md) | 立项理由、分发与招领对照、拟人五维、阶段计划 |
-| [TASKS.md](./TASKS.md) | 阶段 A–F。外围可用版已勾 B1、B3、B4、B5；B2 默认 Local、可选 DSH_ROOT，仍半开；B6 GIF 未做 |
+| [TASKS.md](./TASKS.md) | 阶段 A–F。外围可用版已勾 B1、B3、B4、B5；B2 仍半开；E1 接口部分落地；B6 GIF 未做 |
 | [notes/底座结构笔记-2026-11-01.md](./notes/底座结构笔记-2026-11-01.md) | 底座事实、入站到执行的路径、扩展点、不能依赖的内部 |
 | [notes/MVP边界-外围分发器-2026-11-01.md](./notes/MVP边界-外围分发器-2026-11-01.md) | 可用版先做外围分发器 + inbox Source，以及刻意不做的事 |
+| [notes/HostAdapter-对影-2026-11-01.md](./notes/HostAdapter-对影-2026-11-01.md) | 阶段 E1 接口骨架。默认本地 CLI；对影待问鎏虹 |
 
 上游：[deepseek-ai/dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype)。该仓 Issues 已关闭，待验证项记在结构笔记 §7。
