@@ -54,7 +54,7 @@
 - 默认执行口是 `LocalExecutor`（`packages/dispatcher/src/executor.ts`）。它把派工记在 `.daogang/executor.json`，会话名是 `worker-<ticketId>`。不需要密钥，也不需要 clone 底座。
 - `DAOGANG_EXECUTOR=dsh` 且没设 `DAOGANG_DSH_ROOT`：和以前一样，抛出「DSH 未接线」，这次派工落成招领。
 - 设了 `DAOGANG_DSH_ROOT`（且没有把执行口显式锁成 `local`）：适配器按路径加载该克隆里的 `DshExecutor`，调用 `start` → `enqueue('launch', assignmentId, { ticketId, assignmentId })`，`deliver` → `enqueue('delivery', ticketId, { ticketId })`。入队记在到岗侧的站位 effects 上。这条路径不打开底座 `Store`，也不进私有 `launch()`。克隆加载失败同样落招领。
-- 公开 enqueue 载荷只有 id，放不下卡片。inbox Trigger 把本腿卡片写进 `text` 和 `meta.cards`（标记 `[daogang-cards]`）。上游 `triggerMessage` 读的是 `text`，不读 `meta`。explicit 接单时 `ticketExecution` 把 accept 的 `note` 写进 `execution.assignment`。`inputMessage` 对文本输入原样返回。这三份是私有 `launch()` / `deliverInput()` 才会交给 `sessions.prompt` 的材料。这一步不调用那两个私有方法。
+- 公开 enqueue 载荷只有 id，放不下卡片。inbox Trigger 把本腿卡片写进 `text` 和 `meta.cards`（标记 `[daogang-cards]`）。上游 `triggerMessage` 读的是 `text`，不读 `meta`。explicit 接单时 `ticketExecution` 把 accept 的 `note` 写进 `execution.assignment`。`inputMessage` 对文本输入原样返回。这三份是私有 `launch()` / `deliverInput()` 才会交给 `sessions.prompt` 的材料。适配器不调用那两个私有方法。`scripts/check-runtime.mjs` 用 stub `sessions` 证明：票数据齐全时，`Effects.start()` 的 handler 会把同一段卡片送进 `sessions.prompt`。那次调用不到真实模型。
 - inbox Source 可以按 [packages/inbox-source/README.md](packages/inbox-source/README.md) 用 `file:` 或 `link:` 挂到本机 DSH 克隆，默认 `disabled: true`。本地 `LocalInbox` 仍是 CLI 的接单路径。`configured()` 在空 GitHub 配置下为 false，这一点在上游克隆里核对过；Cordis 整链进程和活 worker Session **未验证**。
 
 ## 状态
@@ -123,13 +123,22 @@ pnpm dispatch -- "帮我补上安装说明"
 DAOGANG_DSH_ROOT=/绝对路径/dsh-superagent-prototype node scripts/check-effects.mjs
 ```
 
-没设这个变量时脚本说明跳过并退出 0。成功时标准输出是一份 JSON：`effect` 表有 `launch` / `delivery` 且 `attempts` 为 0，`sessionCalls` 为空；`prompt` 三项为 true；`runtime.loaded` 为 false；`orchestrator.receivedWhenConfigured` 为 true。失败退出非 0，`failed` 字段说明缺什么（常见是克隆还没 `pnpm install`）。打印结果不含绝对路径。细节在 [底座结构笔记 §10](docs/notes/底座结构笔记-2026-11-01.md)。
+没设这个变量时脚本说明跳过并退出 0。成功时标准输出是一份 JSON：`effect` 表有 `launch` / `delivery` 且 `attempts` 为 0，`sessionCalls` 为空；`prompt` 三项为 true；`orchestrator.receivedWhenConfigured` 为 true。`runtime.loaded` 取决于 Node：v22.23.4 解析不了 `await using`，所以是 false；v24.22.2 能加载模块，这个脚本仍不构造 Runtime。失败退出非 0，`failed` 字段说明缺什么（常见是克隆还没 `pnpm install`）。打印结果不含绝对路径。
+
+Runtime 构造和 stub `sessions.prompt` 是另一条，同样不读密钥，`pnpm test` 不跑：
+
+```bash
+# 退出 0 需要能解析 await using 的 Node。本轮用的是 v24.22.2。
+DAOGANG_DSH_ROOT=/绝对路径/dsh-superagent-prototype node scripts/check-runtime.mjs
+```
+
+没设变量时退出 0。v24 成功时：`runtime.constructed` 为 true，`healthCode` 是 `setupPending`，`effectsStarted` 为 false；`launch.checked` 为 true，`cardsInAssignment` 与 `cardsInTriggerText` 为 true，`modelCalled` 为 false。v22.23.4 上 Runtime 一段失败、脚本退出非 0，launch 一段仍可通过。细节在 [底座结构笔记 §10](docs/notes/底座结构笔记-2026-11-01.md)。
 
 下面几件仍然 **未验证**：
 
-- 正在跑的 superagent 进程。本机 Node 解析不了上游 `delivery.ts` 里的 `await using`，所以没有构造 `Runtime`
-- `Effects.start()` 之后的 handler，以及私有 `launch()` 里的 `sessions.prompt`。worker Session 不会起来
-- 卡片文本有没有进入一次真实的 worker 模型请求。公开函数能保住卡片文本；真正送进 Session 的仍是私有 `launch()`
+- 正在跑的 superagent 进程。Runtime 探测用的 webServer 只登记、不监听
+- 活的 `worker-<ticketId>` Session。stub `sessions.ensure` 没有创建 DSH Session
+- 卡片文本有没有进入一次真实的 worker 模型请求。stub `sessions.prompt` 记下了首条消息，没有调用 `llm`
 
 ## 接着试
 

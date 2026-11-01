@@ -116,6 +116,17 @@ DAOGANG_DSH_ROOT=<上游克隆> node scripts/check-effects.mjs
 - 公开 enqueue 载荷仍只有 id。卡片在 Trigger `text` / `meta.cards`。`triggerMessage`、`ticketExecution`（explicit 的 note）和 `inputMessage` 之后，卡片摘要还在。这是私有 `launch()` 会交给 `sessions.prompt` 的那一层，这一步不调用 `launch()`。
 - Cordis `Context.plugin` 注入假 `orchestrator`。`configured()` 为 false 时上报 `setupPending` 并且不 `receive`。为 true 时 `receive` 拿到带卡片的 Trigger。
 
+## Runtime 与 stub launch
+
+`check-effects.mjs` 不构造 Runtime，也不调用 `Effects.start()`。下一支脚本补这两段，仍然不读密钥，`pnpm test` 不跑：
+
+```bash
+# 退出 0 需要能解析 await using 的 Node。本轮是 v24.22.2。
+DAOGANG_DSH_ROOT=<上游克隆> node scripts/check-runtime.mjs
+```
+
+没设变量时退出 0。v24.22.2 上：空 GitHub 配置的 `Runtime` 停在 `setupPending`，`effects.start()` 没有被调用；齐全的票夹具让 handler 进入私有 `launch()`，stub `sessions.prompt` 的 `assignment` 和 `trigger.text` 仍含 `[daogang-cards]`。v22.23.4 解析不了 `await using`，Runtime 一段失败。细节在结构笔记 §10。
+
 ## 还没验证
 
-没有启动 superagent 进程。本机 Node 解析不了 `delivery.ts` 的 `await using`，所以没有构造上游 `Runtime`。`Effects.start()` 没调用，私有 `launch()` 没跑，活的 worker Session 没有，卡片也没有进入一次真实的模型请求。Channel 和 `threadContext` 没做。假 orchestrator 不是 `Runtime` 那条整链。plugin-loader 读 `disabled: false` 的 profile 这一轮没有再跑；补丁文件仍是 `disabled: true`。
+没有启动 superagent 进程。Runtime 探测的 webServer 只登记、不监听。stub `sessions.ensure` / `prompt` 没有创建 DSH Session，也没有模型请求。`configured() === true` 的 Runtime 要 GitHub 仓库和 `gh`，这一步没做。Channel 和 `threadContext` 没做。假 orchestrator 不是装好的 dsh-superagent 进程。plugin-loader 读 `disabled: false` 的 profile 这一轮没有再跑；补丁文件仍是 `disabled: true`。
