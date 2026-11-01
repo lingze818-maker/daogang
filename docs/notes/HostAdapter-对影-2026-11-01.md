@@ -6,7 +6,7 @@ _公开说明。没有密钥、没有真实 peer、没有私人目录。_
 
 ## 已经对齐的六条
 
-1. **消息入口。** 第一宿主对接走本机 HTTP，不把现状说成已经有窗口协议。对影现在是：浏览器前端自己持有 messages，`POST /api/chat`（流式）；另有 `POST /api/wake`（只拼人格和 Skill，不调 LLM）、`POST /api/im/chat`（渠道 + peer_id，头 `X-IM-Secret`，默认关）。默认基址 `http://127.0.0.1:8765`，可改，但只接受 loopback。到岗→对影这一期只做旁路连通（`GET /api/health`、`POST /api/wake`）。对影→到岗没有钩子，分发仍用 LocalCli。
+1. **消息入口。** 第一宿主对接走本机 HTTP，不把现状说成已经有窗口协议。对影现在是：浏览器前端自己持有 messages，`POST /api/chat`（流式）；另有 `POST /api/wake`（只拼人格和 Skill，不调 LLM）、`POST /api/im/chat`（渠道 + peer_id，头 `X-IM-Secret`，默认关）。默认基址 `http://127.0.0.1:8765`，可改，但只接受 loopback。连通证明仍是 `GET /api/health` 与 `POST /api/wake`。进窗与用户话按对影 [PR #59](https://github.com/lingze818-maker/duiying/pull/59) 的形状接线，等该 PR 合入后再对真进程调用。分发入口是外围 `dispatchLine`，不调用 `/api/chat`。
 2. **会话标识。** `/api/chat` 没有 session_id。状态是客户端的 messages[] 加上 `mode: "companion" | "dev"`。IM 侧是 `{channel}:{peer_id}`。`worker-<ticketId>` 不能当作对影会话名。到岗继续用这个名字；对影侧用到岗维护的映射：ticketId → { mode，可选 channel / peer，或本地 delivery 键 }。`openSession` 只写这张表，不假定对影拉起了进程或会话对象。
 3. **打断。** 对影没有 interrupt / cancel。第一期 interrupt 是另开一条（新的 worker 映射），不抢当前窗。不超过 200 字的交接备注只写到岗的 board / worker，和 LocalCli 一样，不写对影 `data/logs`，也不写记忆库。底座全库同样没有 interrupt；高优打断低优仍由外围分发器做，见结构笔记 §9。
 4. **readContext。** 可以给出：sessionId、mode、工单摘要、handoffNote、最近一句的角色和截断正文。没有摘要就返回空字符串。禁止进入公开仓和到岗日志的有：逐字对话全文、`data/memory`、`user-preference-*`、guard / finetune、真实 peer_id、API Key、本机私人目录的绝对路径。wake 的响应不回灌进上下文。
@@ -21,7 +21,7 @@ wake 的 JSON 就这三件：`mode`、`text`、`skip_memory`。字段名按上�
 | --- | --- |
 | `checkHealth` | `GET /api/health`。连不上或不是 200，抛 `DuiyingLinkError`，不带本机绝对路径 |
 | `proveWake` | 先要有到岗 secret，再 `POST /api/wake`。不保存响应 |
-| `sendMessage` | 拒绝。这不是进窗 |
+| `sendMessage` | `POST /api/daogang/inject`，头 `X-Daogang-Secret`。200 只收 `delivery_key`、`text`、`at`，并把 `dg-` 键写回映射。401 / 503 是明确错误 |
 | `openSession` | 只写 `duiying-map.json` |
 | `interrupt` | 到岗 board / worker 与 LocalCli 相同，并登记新映射。不请求对影 |
 | `readContext` | 摘要、mode、交接、可选的截断一句。不返回 peer、channel、wake 正文 |
@@ -29,9 +29,9 @@ wake 的 JSON 就这三件：`mode`、`text`、`skip_memory`。字段名按上�
 
 `createHost()` 默认仍是 `local-cli`。`pnpm dispatch` 不经过这个包。
 
-## 仍等灵泽
+## 进窗与用户话（对影 #59，尚未合入）
 
-下面两项这一仓不做，等灵泽拍板后由对影侧开 PR：
+灵泽已拍板做这两项。到岗按 `docs/daogang-接线.md` 的形状接好了，真调要等对影 PR 合入。
 
-1. **进窗注入。** 让到岗的一句真正出现在对影窗口里。现状没有这个入口，`sendMessage` 保持拒绝。
-2. **用户话进分发。** 对影里的一句怎么交到到岗分发器。现状没有钩子，分发继续走 LocalCli。
+1. **进窗。** `POST {base}/api/daogang/inject`。头是 `Content-Type: application/json` 和 `X-Daogang-Secret`（到岗自己的 secret，不读对影模型 Key）。body 有 `text`、`worker_ref`（到岗的 `worker-<ticketId>`，对影收下即弃）、映射上的 `mode`。只有映射里的 `deliveryKey` 已经以 `dg-` 开头才带 `delivery_key`。成功响应只有 `delivery_key`、`text`、`at`。返回的键写回映射，换掉 `worker-*` 占位。给 HostAdapter 的消息仍用原来的 `sessionId`。对影 503 是未启用或缺 secret，401 是 secret 不对或没带头。
+2. **用户话钩子。** 到岗在 loopback 上提供 `POST /hooks/duiying-user`（默认端口 `8787`，可用 `DAOGANG_DUIYING_HOOK_PORT` 改）。默认关闭，`DAOGANG_DUIYING_HOOK=1` 或 `duiying.local.json` 里 `"hook": true` 才听。对影把 `daogang.callback_url` 指到这个地址。头同样是 `X-Daogang-Secret`。body 只收 `role: "user"`、`text`（最多 80 个码位）、`mode`、可选 `delivery_key`。这个键用来反查映射，不当成 `worker-*` 会话名。校验失败是 401。收下的一句交给外围 `dispatchLine`，不调用 `/api/chat`。历史全文、记忆、peer、preference、密钥和绝对路径不落盘。

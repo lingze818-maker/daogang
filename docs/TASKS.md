@@ -59,9 +59,9 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 > 宿主无关协议先定，再写适配器，避免绑死本家。
 > **宿主优先级（灵泽 2026-11-01）：对影 > zcode > Codex；对影适配与鎏虹协调。**
 
-- [-] E1 定义宿主适配接口：`HostAdapter`（发消息 / 开会话 / 打断 / 读上下文 / 鉴权）。**部分完成：** 接口和 `LocalCliHost` 在 `packages/host-adapter`，默认仍是本地 CLI。对影口径已按鎏虹 2026-11-01（对影 main `5662082`）写进 [notes/HostAdapter-对影-2026-11-01.md](./notes/HostAdapter-对影-2026-11-01.md)。进窗注入和用户话钩子仍等灵泽。
+- [-] E1 定义宿主适配接口：`HostAdapter`（发消息 / 开会话 / 打断 / 读上下文 / 鉴权）。**部分完成：** 接口和 `LocalCliHost` 在 `packages/host-adapter`，默认仍是本地 CLI。对影口径已按鎏虹 2026-11-01（对影 main `5662082`）写进 [notes/HostAdapter-对影-2026-11-01.md](./notes/HostAdapter-对影-2026-11-01.md)。进窗与用户话钩子按对影 #59 的形状接线，等对影合入后真调。
 - [ ] E2 抽出核心包：`dispatcher` + `board` + `worker-runtime`（与 UI/CLI 解耦）
-- [-] E3 **对影（duiying）适配器**：映射、`auth`、`health` / `wake` 连通、打断另开、安全 `readContext` 已在 `DuiyingHost`。不进窗，不调 `/api/chat`。进窗与用户话回调等灵泽拍板后由对影侧 PR
+- [-] E3 **对影（duiying）适配器**：映射、`auth`、`health` / `wake`、打断另开、安全 `readContext` 已在 `DuiyingHost`。进窗 `POST /api/daogang/inject` 与用户话钩子 `/hooks/duiying-user` 按对影 #59 的形状接线，等对影合入后真调。不调 `/api/chat`
 - [ ] E4 **zcode 适配器**（灵泽日常环境）
 - [ ] E5 **Codex 适配器**
 - [ ] E6 插件安装说明 + 最小配置样例（各宿主一份）
