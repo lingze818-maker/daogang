@@ -8,7 +8,7 @@ CLI 用 `LocalInbox.receive` 模拟「有人接」：
 - 闲聊腿记到 `main`
 - 同一个 Trigger id 再投一次得到 `duplicate`，不新开票
 
-这不等于底座的 Assignment，也没有调用 `DshExecutor.start` / Effects `launch`。产品层的角色写在卡片上，实现层仍是一票一个会话名。
+这不等于底座的 Assignment，也没有调用 `DshExecutor.start` / Effects `launch`。产品层的角色写在卡片上，实现层仍是一票一个会话名。派工出口在分发器的 `ExecutorPort`：默认 `LocalExecutor` 把卡片上下文记下来；`DshExecutorAdapter` 不装 DSH，只列出 `launch` 和 `delivery` 的调用形状。
 
 ## 对照上游食谱
 

@@ -5,16 +5,23 @@ import { Board } from '@daogang/board'
 import { LocalInbox } from '@daogang/inbox-source'
 import { describe, expect, it } from 'vitest'
 import { createFlashRouter } from '../src/flash.ts'
+import { DshExecutorAdapter, LocalExecutor, type ExecutorPort } from '../src/executor.ts'
 import { DaogangError, dispatchLine, type Runtime } from '../src/run.ts'
 import { WorkerLane } from '../src/worker.ts'
 
-function runtime(home: string, flash?: Runtime['flash'], ticketIds?: string[]): Runtime {
+function runtime(
+  home: string,
+  flash?: Runtime['flash'],
+  ticketIds?: string[],
+  executor?: ExecutorPort,
+): Runtime {
   let cursor = 0
   return {
     board: new Board(join(home, 'board.jsonl')),
     inbox: new LocalInbox(join(home, 'inbox.json'), () => ticketIds?.[cursor++] ?? 'abcd1234'),
     flash: flash ?? { async route() { return null } },
     workers: new WorkerLane(join(home, 'worker.json')),
+    executor: executor ?? new LocalExecutor(join(home, 'executor.json')),
   }
 }
 
@@ -27,6 +34,9 @@ describe('dispatchLine', () => {
     expect(output.urgency).toBe(1)
     expect(output.cards[0]).toMatchObject({ role: 'docs', kind: 'task' })
     expect(output.runtime).toBe('local-inbox')
+    expect(output.executor).toBe('local')
+    expect((rt.executor as LocalExecutor).load().launches).toHaveLength(1)
+    expect((rt.executor as LocalExecutor).load().launches[0]?.text).toContain('安装说明')
     expect(output.mainReply).toBeNull()
     expect(output.interrupt).toBeNull()
     expect(output.claims).toEqual([])
@@ -170,6 +180,25 @@ describe('dispatchLine', () => {
     expect(only.board.list()[0]).toMatchObject({ status: 'claim' })
     expect(failed.audit.id).toBe(only.board.list()[0]?.id)
     expect(only.workers.load().busy).toBeNull()
+  })
+
+  it('does not launch a queued task, and a DSH adapter claims instead of starting', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'daogang-run-'))
+    const local = new LocalExecutor(join(home, 'executor.json'))
+    const rt = runtime(home, undefined, ['aaaa1111', 'bbbb2222'], local)
+    await dispatchLine('马上帮我修一下', rt, { messageId: 'high' })
+    await dispatchLine('不急，帮我写文档', rt, { messageId: 'low' })
+    expect(local.load().launches).toHaveLength(1)
+    expect(local.load().launches[0]?.session).toBe('worker-aaaa1111')
+
+    const home2 = mkdtempSync(join(tmpdir(), 'daogang-run-'))
+    const dsh = runtime(home2, undefined, undefined, new DshExecutorAdapter())
+    const failed = await dispatchLine('帮我补上安装说明', dsh, { messageId: 'dsh' })
+    expect(failed.executor).toBe('dsh')
+    expect(failed.claims[0]?.reason).toContain('DSH 未接线')
+    expect(failed.claims[0]?.reason).toContain('launch')
+    expect(dsh.workers.load().busy).toBeNull()
+    expect(dsh.board.list()[0]?.status).toBe('claim')
   })
 
   it('rejects an empty line before writing', async () => {

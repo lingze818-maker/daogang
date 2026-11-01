@@ -1,5 +1,6 @@
 {
   "name": "daogang",
+  "version": "0.1.0-peripheral",
   "private": true,
   "license": "MIT",
   "type": "module",
