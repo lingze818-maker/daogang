@@ -49,12 +49,12 @@
 - 接单失败追加 `"status":"claim"` 的招领行。`DAOGANG_FAIL_LANE=task` 用来演示离线或超时。
 - `bash scripts/demo.sh` 把上面串成一次终端演示。记录在 [docs/demo/peripheral.cast](docs/demo/peripheral.cast)。GIF 还没有。
 
-**B2 仍半开。** 默认没有真 DSH 会话。可选根目录只把 `start` / `deliver` 的 enqueue 接上，不拉起 worker。
+**B2 仍半开。** 默认没有真 DSH 会话。可选根目录只把 `start` / `deliver` 的 enqueue 接到站位 effects，不拉起 worker，也不写底座 SQLite。要看 `effect` 表，跑下面的检查脚本。
 
 - 默认执行口是 `LocalExecutor`（`packages/dispatcher/src/executor.ts`）。它把派工记在 `.daogang/executor.json`，会话名是 `worker-<ticketId>`。不需要密钥，也不需要 clone 底座。
 - `DAOGANG_EXECUTOR=dsh` 且没设 `DAOGANG_DSH_ROOT`：和以前一样，抛出「DSH 未接线」，这次派工落成招领。
-- 设了 `DAOGANG_DSH_ROOT`（且没有把执行口显式锁成 `local`）：适配器按路径加载该克隆里的 `DshExecutor`，调用 `start` → `enqueue('launch', assignmentId, { ticketId, assignmentId })`，`deliver` → `enqueue('delivery', ticketId, { ticketId })`。入队记在到岗侧的站位 effects 上，不写底座 SQLite，也不进私有 `launch()`。克隆加载失败同样落招领。
-- 卡片仍在审计行里。上游把卡片写进 worker prompt 的逻辑在私有 `launch()`，这一步不调用。
+- 设了 `DAOGANG_DSH_ROOT`（且没有把执行口显式锁成 `local`）：适配器按路径加载该克隆里的 `DshExecutor`，调用 `start` → `enqueue('launch', assignmentId, { ticketId, assignmentId })`，`deliver` → `enqueue('delivery', ticketId, { ticketId })`。入队记在到岗侧的站位 effects 上。这条路径不打开底座 `Store`，也不进私有 `launch()`。克隆加载失败同样落招领。
+- 公开 enqueue 载荷只有 id，放不下卡片。inbox Trigger 把本腿卡片写进 `text` 和 `meta.cards`（标记 `[daogang-cards]`）。上游 `triggerMessage` 读的是 `text`，不读 `meta`。explicit 接单时 `ticketExecution` 把 accept 的 `note` 写进 `execution.assignment`。`inputMessage` 对文本输入原样返回。这三份是私有 `launch()` / `deliverInput()` 才会交给 `sessions.prompt` 的材料。这一步不调用那两个私有方法。
 - inbox Source 可以按 [packages/inbox-source/README.md](packages/inbox-source/README.md) 用 `file:` 或 `link:` 挂到本机 DSH 克隆，默认 `disabled: true`。本地 `LocalInbox` 仍是 CLI 的接单路径。`configured()` 在空 GitHub 配置下为 false，这一点在上游克隆里核对过；Cordis 整链进程和活 worker Session **未验证**。
 
 ## 状态
@@ -117,11 +117,19 @@ pnpm dispatch -- "帮我补上安装说明"
 
 `dsh@0.2.1-rc.3` 在临时 profile 上试过 `plugin add`（`file:` 与 `link:`）和 `--dump-config`：组合结果里有默认关闭的 `daogang-inbox`。那个 profile 没有启动，也没有装上 dsh-superagent。
 
+克隆已经 `pnpm install` 时，可以无密钥复跑 effect 表和假 orchestrator（不读密钥，`pnpm test` 不跑）：
+
+```bash
+DAOGANG_DSH_ROOT=/绝对路径/dsh-superagent-prototype node scripts/check-effects.mjs
+```
+
+没设这个变量时脚本说明跳过并退出 0。成功时标准输出是一份 JSON：`effect` 表有 `launch` / `delivery` 且 `attempts` 为 0，`sessionCalls` 为空；`prompt` 三项为 true；`runtime.loaded` 为 false；`orchestrator.receivedWhenConfigured` 为 true。失败退出非 0，`failed` 字段说明缺什么（常见是克隆还没 `pnpm install`）。打印结果不含绝对路径。细节在 [底座结构笔记 §10](docs/notes/底座结构笔记-2026-11-01.md)。
+
 下面几件仍然 **未验证**：
 
-- 正在跑的 superagent 进程，以及 `orchestrator` 注入后的整链
-- enqueue 是否写进底座 Effects 的 SQLite，以及 worker Session 会不会起来
-- 卡片文本有没有进入 worker prompt
+- 正在跑的 superagent 进程。本机 Node 解析不了上游 `delivery.ts` 里的 `await using`，所以没有构造 `Runtime`
+- `Effects.start()` 之后的 handler，以及私有 `launch()` 里的 `sessions.prompt`。worker Session 不会起来
+- 卡片文本有没有进入一次真实的 worker 模型请求。公开函数能保住卡片文本；真正送进 Session 的仍是私有 `launch()`
 
 ## 接着试
 

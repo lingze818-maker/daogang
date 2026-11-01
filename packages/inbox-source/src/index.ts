@@ -20,8 +20,11 @@ export {
   type InboxSourceConfig,
 } from './plugin.ts'
 export {
+  CARD_MARK,
+  cardBlock,
   inboxScope,
   inboxTrigger,
+  textWithCards,
   type InboxScopeResult,
   type InboxTrigger,
 } from './trigger.ts'

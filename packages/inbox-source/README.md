@@ -16,7 +16,7 @@
 
 | 食谱 | 本包 | 状态 |
 | --- | --- | --- |
-| 译成 Trigger（稳定 id、Thread、actor、`addressed`） | `inboxTrigger` | CLI 每条输入 `addressed: direct` |
+| 译成 Trigger（稳定 id、Thread、actor、`addressed`） | `inboxTrigger` | CLI 每条输入 `addressed: direct`。本腿卡片在 `meta.cards`，同一段也写进 `text`（`[daogang-cards]`）。`triggerMessage` 只读 `text` |
 | `scope`，未列入的对话仍交给 receive | `inboxKind.scope` → `inboxScope` | 只看 `meta.conversation`。真实 Engine 未挂 |
 | Policy 的 explicit 与 admission `rows` | `inboxKind.policy`，Zod `schema` | 默认 `allowed: []`。`rows` 的形状在；名单还没有进底座已保存的 Policy |
 | Channel：`send` 幂等，只有永久失败才 `gone` | 分发器里的 `main-stub` | 主窗是本地桩，不是底座 Channel.send |
@@ -100,6 +100,22 @@ DAOGANG_DSH_ROOT=<上游克隆> node scripts/check-inbox-attach.mjs
 
 `scripts/check-inbox-attach.mjs` 复跑的是 `SourceRegistry` 和 `Setup` 这一段。上游源码用了参数属性，脚本会自己加上 Node 的 `--experimental-transform-types`，不必先 `pnpm build` 上游。
 
+## 假 orchestrator 与 effect 表
+
+`cordis.patch.yml` 保持 `disabled: true`。要在 Cordis 里把插件打开，用克隆自带的 `Context.plugin`，不改补丁文件：
+
+```bash
+DAOGANG_DSH_ROOT=<上游克隆> node scripts/check-effects.mjs
+```
+
+没设变量时退出 0。克隆需已 `pnpm install`。脚本不读密钥，`pnpm test` 不跑它。
+
+已经对上的（上游 `6337fc8`，无密钥）：
+
+- 公开 `Store` + 未调用 `start()` 的 `Effects`，接上 `DshExecutor.start` / `deliver`。临时库 `effect` 表有 `launch` 和 `delivery`，`attempts` 为 0。`sessions.prompt` 没有被调用。
+- 公开 enqueue 载荷仍只有 id。卡片在 Trigger `text` / `meta.cards`。`triggerMessage`、`ticketExecution`（explicit 的 note）和 `inputMessage` 之后，卡片摘要还在。这是私有 `launch()` 会交给 `sessions.prompt` 的那一层，这一步不调用 `launch()`。
+- Cordis `Context.plugin` 注入假 `orchestrator`。`configured()` 为 false 时上报 `setupPending` 并且不 `receive`。为 true 时 `receive` 拿到带卡片的 Trigger。
+
 ## 还没验证
 
-没有启动 superagent 进程，临时 profile 里也没有 dsh-superagent 的 `orchestrator`。活的 worker Session、卡片进 worker prompt、enqueue 写进底座 SQLite，都没有。Channel 和 `threadContext` 没做。临时 loader 不是上游 `Runtime` 那条整链。
+没有启动 superagent 进程。本机 Node 解析不了 `delivery.ts` 的 `await using`，所以没有构造上游 `Runtime`。`Effects.start()` 没调用，私有 `launch()` 没跑，活的 worker Session 没有，卡片也没有进入一次真实的模型请求。Channel 和 `threadContext` 没做。假 orchestrator 不是 `Runtime` 那条整链。plugin-loader 读 `disabled: false` 的 profile 这一轮没有再跑；补丁文件仍是 `disabled: true`。

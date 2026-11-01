@@ -11,7 +11,10 @@ import { openDshExecutor, type DshEnqueueEvent, type DshExecutorLike } from './d
  * `start` → `effects.enqueue('launch', assignmentId, { ticketId, assignmentId })`
  * `deliver` → `effects.enqueue('delivery', ticketId, { ticketId })`
  * 会话名是 `worker-${ticketId}`。
- * 站位 effects 不跑 handler，所以没有私有 launch()，也没有活的 worker Session。
+ * 这里的 effects 是站位：只记下 enqueue，不打开底座 Store，也不跑 handler。
+ * 公开载荷只有 ticketId / assignmentId，卡片不在里面。
+ * 要看 effect 表里的行，以及卡片经过公开 triggerMessage / ticketExecution / inputMessage 之后还在不在，
+ * 跑 `scripts/check-effects.mjs`。那个脚本不调用 effects.start()，也不进私有 launch()。
  */
 
 export interface ExecutorCard {

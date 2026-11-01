@@ -4,6 +4,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   apply,
+  CARD_MARK,
+  cardBlock,
   InboxFeed,
   inboxConfigSchema,
   inboxKind,
@@ -13,6 +15,7 @@ import {
   inject,
   LocalInbox,
   name,
+  textWithCards,
   type Decision,
   type InboxHealth,
   type InboxLoopHost,
@@ -45,6 +48,10 @@ describe('inbox source', () => {
     expect(built.addressed).toBe('direct')
     expect(built.human).toBe(true)
     expect(built.meta.policy).toBe('explicit')
+    expect(built.meta.card).toEqual(decision.cards[0])
+    expect(built.meta.cards).toEqual(decision.cards)
+    expect(built.text).toBe(textWithCards('帮我补上安装说明', decision.cards))
+    expect(built.text).toContain(`${CARD_MARK}\n- docs/task: 补上安装说明`)
     expect(built.threads[0]).toEqual({ source: 'inbox', id: 'cli:m1' })
     expect(inboxScope(built.meta, { conversation: 'cli' })).toEqual({
       listened: true,
@@ -52,6 +59,31 @@ describe('inbox source', () => {
       row: 'cli',
     })
     expect(inboxScope({ conversation: 'other' }, { conversation: 'cli' }).reason).toBe('conversation_not_listed')
+  })
+
+  it('keeps only the lane cards in the trigger text', () => {
+    const mixed: Decision = {
+      target: 'mixed',
+      urgency: 2,
+      cards: [
+        { role: 'main', kind: 'chat', summary: '谢谢' },
+        { role: 'docs', kind: 'task', summary: '补上安装说明' },
+      ],
+    }
+    const task = inboxTrigger({
+      messageId: 'm1',
+      at: '2026-11-01T12:00:00.000Z',
+      text: '谢谢，帮我补上安装说明',
+      decision: mixed,
+      lane: 'task',
+    })
+    expect(task.meta.cards).toEqual([mixed.cards[1]])
+    expect(task.meta.card).toEqual(mixed.cards[1])
+    expect(task.text.startsWith('谢谢，帮我补上安装说明')).toBe(true)
+    expect(task.text).toContain('docs/task: 补上安装说明')
+    expect(task.text).not.toContain('main/chat')
+    expect(cardBlock([])).toBe('')
+    expect(textWithCards('  ', [])).toBe('  ')
   })
 
   it('accepts a task into worker-<ticketId> and a replay as duplicate', () => {
