@@ -15,6 +15,7 @@ import { openDshExecutor, type DshEnqueueEvent, type DshExecutorLike } from './d
  * 公开载荷只有 ticketId / assignmentId，卡片不在里面。
  * 要看 effect 表里的行，以及卡片经过公开 triggerMessage / ticketExecution / inputMessage 之后还在不在，
  * 跑 `scripts/check-effects.mjs`。那个脚本不调用 effects.start()，也不进私有 launch()。
+ * `scripts/check-runtime.mjs` 才调用 Effects.start()，并用 stub sessions 观察私有 launch()。
  */
 
 export interface ExecutorCard {
