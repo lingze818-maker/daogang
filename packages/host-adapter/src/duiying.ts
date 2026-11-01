@@ -25,7 +25,8 @@ const LINE_CAP = 80
 
 /**
  * 对影宿主。六条口径来自鎏虹 2026-11-01（对影 main `5662082`）。
- * 进窗与用户话按对影 PR #59 的形状接线。该 PR 尚未合入，真进程要等合入后再调。
+ * 进窗与用户话按对影 PR #59 的形状接线。#59 已合入对影 main。
+ * 2026-11-02 本机 loopback 真调通过：inject 得到 `dg-` delivery_key；用户话钩子正确 secret 200、错 secret 401。
  *
  * `worker-<ticketId>` 只是到岗会话名。对影收下 `worker_ref` 即弃。
  * 映射里的 deliveryKey 以 `dg-` 开头时才放进 inject。

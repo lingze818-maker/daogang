@@ -1,11 +1,9 @@
 # 到岗 inbox Source 的 Cordis 补丁。对照上游 docs/008-cookbook.md 第 10 步。
-# 默认关闭。这不是 dsh-superagent-prototype 的 bundle，也不要把它的源码复制进本仓。
-# 启用前把 @daogang/inbox-source 用 file: 或 pnpm link 指到 DSH 能解析的位置。
-# 本入口是 TypeScript 源文件。真实 Cordis 是否加载、configured() 是否通过，未验证。
-#
-# 写进 profile 的 cordis.patch.yml 来启用（不要把本文件的默认改成 false 再当上游补丁提交）：
-# - id: daogang-inbox
-#   disabled: false
+# 默认关闭。这不是 dsh-superagent-prototype 的 bundle，也不要把上游源码复制进本仓。
+# dsh plugin add 看到 package.json 的 dsh.bundle.patch 后会插入下面这一条。
+# 入口是构建产物 lib/index.js。Node 不剥离 node_modules 里的 TypeScript。
+# 要启用，把 examples/profile.cordis.patch.yml 合并进 profile 的 cordis.patch.yml。
+# 不要把本文件的 disabled 改成 false。
 - insert:
     - id: daogang-inbox
       name: '@daogang/inbox-source'

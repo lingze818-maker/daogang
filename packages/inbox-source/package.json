@@ -5,14 +5,22 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
+    "lib",
     "src",
     "cordis.patch.yml",
+    "examples",
     "README.md"
   ],
+  "dependencies": {
+    "zod": "4.4.3"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

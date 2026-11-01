@@ -1,7 +1,7 @@
 # 「到岗」任务清单
 
 _目标：尽快可用版 → 再做成可挂宿主的通用插件（优先级：对影 > zcode > Codex）_
-_主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
+_主责：鎏涟 · 更新：2026-11-02（C1 挂载路径；对影 #59 真调）_
 
 ## 总路线
 
@@ -29,7 +29,7 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 **外围可用版 `0.1.0-peripheral`：** `pnpm dispatch`、主窗桩、本地打断、招领和 `bash scripts/demo.sh` 可以无密钥、无 DSH 安装演示。执行口默认 `LocalExecutor`。设了 `DAOGANG_DSH_ROOT` 时，`DshExecutorAdapter` 按路径调用克隆里的 `start`→`enqueue('launch')` 与 `deliver`→`enqueue('delivery')`；没设时仍是未接线并落招领。真 worker Session 不起。GIF 先不做。
 
 - [x] B1 分发器常驻进程：输入 → `{target, urgency, cards}`（Flash 路由 + 关键词兜底）
-- [ ] B2 角色路由到 Ticket Session：派单后由底座 Assignment 起 `worker-<ticketId>` Session，按卡片注入上下文（产品层可保留多个角色，不是 3 个长驻进程）。**默认 Local。** `LocalExecutor` 按卡片记下派工。可选 `DAOGANG_DSH_ROOT`（或 `DAOGANG_EXECUTOR=dsh` 且给出该根）时，适配器动态加载克隆里的 `DshExecutor`，只调用公开的 `start` / `deliver`，确认 enqueue 了 `launch` / `delivery`。未设置根目录时抛未接线并落招领。`pnpm test` 不装 dsh、不读这个变量。还没有活的 worker Session，卡片没有进 worker prompt，`configured()` 与 Cordis 整链未验证
+- [ ] B2 角色路由到 Ticket Session：派单后由底座 Assignment 起 `worker-<ticketId>` Session，按卡片注入上下文（产品层可保留多个角色，不是 3 个长驻进程）。**默认 Local。** `LocalExecutor` 按卡片记下派工。可选 `DAOGANG_DSH_ROOT`（或 `DAOGANG_EXECUTOR=dsh` 且给出该根）时，适配器动态加载克隆里的 `DshExecutor`，只调用公开的 `start` / `deliver`，确认 enqueue 了 `launch` / `delivery`。未设置根目录时抛未接线并落招领。`pnpm test` 不装 dsh、不读这个变量。还没有活的 worker Session，卡片没有进 worker prompt。`configured()` 已在上游克隆 `6337fc8` 上无密钥核对：空 settings 时 `Setup.run` 返回 false，`configured()` 为 false，原因是 GitHub `repositoryUnset`；空飞书 CLI 不单独挡住；`SETUP_FIELDS` 没有 `inbox`。这不是 Cordis 进程里的一轮，enqueue 也没有写进底座 SQLite
 - [x] B3 mixed 双投：闲聊回主窗 + 任务立案，互不阻塞。主窗是本地 `main-stub`，不是底座 Channel
 - [x] B4 打断与快照：高优先级打断低优先级；看板留 ≤200 字交接备注。旧工单留在本地队列里，没有单独的 resume 命令，也没有回到 DSH
 - [x] B5 分发失败自动落板：目标离线/超时 → 转招领安全网。触发的是本地 receive 失败（含演示开关），不是底座超时探测
@@ -39,7 +39,7 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 
 ## 阶段 C · 挂上 dsh-superagent（约 3–5 天）
 
-- [ ] C1 分发器做成 Source 插件或外围服务（Panel 只作运维面，不引入 bridge）
+- [ ] C1 分发器做成 Source 插件或外围服务（Panel 只作运维面，不引入 bridge）。**第一步（挂载路径，2026-11-02）：** `packages/inbox-source` 按 cookbook 用 `file:` 或 `link:` 挂到本机 DSH 克隆，默认 `disabled: true`，入口是 `lib/index.js`。说明在该包 README。无密钥已核对：包能被 `file:` / `link:` 解析；`dsh@0.2.1-rc.3` 对临时 web profile 的 `plugin add`（先 `file:` 再 `link:`）成功，`--dump-config` 组合出 `daogang-inbox` 且 `disabled: true`，进程没启动、profile 里没有 dsh-superagent；Cordis loader 在 `disabled: true` 时不加载、打开后会 `register`，且 `configured() === false` 时只报 `setupPending`；克隆里的 `SourceRegistry` 接受 Zod schema，拒绝只有 `parse` 的 schema；`Setup.configured()` 在没有 GitHub 仓库时为 false。没有活 Session。复跑：`DAOGANG_DSH_ROOT=<克隆> node scripts/check-inbox-attach.mjs`（不读密钥；`pnpm test` 不跑这一段）
 - [ ] C2 独立 repo 或 PR；打 `dsh-superagent` topic
 - [ ] C3 若底座接口不稳：降级为「兼容 dsh 的独立工具」，不阻塞阶段 D
 
@@ -59,9 +59,9 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 > 宿主无关协议先定，再写适配器，避免绑死本家。
 > **宿主优先级（灵泽 2026-11-01）：对影 > zcode > Codex；对影适配与鎏虹协调。**
 
-- [-] E1 定义宿主适配接口：`HostAdapter`（发消息 / 开会话 / 打断 / 读上下文 / 鉴权）。**部分完成：** 接口和 `LocalCliHost` 在 `packages/host-adapter`，默认仍是本地 CLI。对影口径已按鎏虹 2026-11-01（对影 main `5662082`）写进 [notes/HostAdapter-对影-2026-11-01.md](./notes/HostAdapter-对影-2026-11-01.md)。进窗与用户话钩子按对影 #59 的形状接线，等对影合入后真调。
+- [-] E1 定义宿主适配接口：`HostAdapter`（发消息 / 开会话 / 打断 / 读上下文 / 鉴权）。**部分完成：** 接口和 `LocalCliHost` 在 `packages/host-adapter`，默认仍是本地 CLI。对影口径已按鎏虹 2026-11-01（对影 main `5662082`）写进 [notes/HostAdapter-对影-2026-11-01.md](./notes/HostAdapter-对影-2026-11-01.md)。进窗与用户话钩子按对影 #59 的形状接线。#59 已合入对影 main。本机 loopback 真调通过（2026-11-02）：inject 得到 `dg-` delivery_key；`/hooks/duiying-user` 正确 secret 200、错 secret 401。
 - [ ] E2 抽出核心包：`dispatcher` + `board` + `worker-runtime`（与 UI/CLI 解耦）
-- [-] E3 **对影（duiying）适配器**：映射、`auth`、`health` / `wake`、打断另开、安全 `readContext` 已在 `DuiyingHost`。进窗 `POST /api/daogang/inject` 与用户话钩子 `/hooks/duiying-user` 按对影 #59 的形状接线，等对影合入后真调。不调 `/api/chat`
+- [-] E3 **对影（duiying）适配器**：映射、`auth`、`health` / `wake`、打断另开、安全 `readContext` 已在 `DuiyingHost`。进窗 `POST /api/daogang/inject` 与用户话钩子 `/hooks/duiying-user` 按对影 #59 的形状接线。#59 已合入对影 main。本机 loopback 真调通过（2026-11-02）：inject 得到 `dg-` delivery_key；正确 secret 200、错 secret 401。不调 `/api/chat`
 - [ ] E4 **zcode 适配器**（灵泽日常环境）
 - [ ] E5 **Codex 适配器**
 - [ ] E6 插件安装说明 + 最小配置样例（各宿主一份）
@@ -90,4 +90,4 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 2. ~~A1–A4~~ 已完成
 3. 外围可用版已能演示派单、主窗桩、打断和招领。B2 仍半开：默认 `LocalExecutor`；可选 `DAOGANG_DSH_ROOT` 只接到 enqueue，没有底座会话
 4. B6 的 GIF 先不做；终端记录在 `docs/demo/peripheral.cast`
-5. E1 接口在 `packages/host-adapter`（默认 Local）。对影已按六条口径做连通证明，进窗和用户话钩子等灵泽。完整跨宿主适配仍和 C 并行
+5. E1 接口在 `packages/host-adapter`（默认 Local）。对影 #59 已合入，进窗和用户话的 loopback 真调已通过。完整跨宿主适配仍和 C 并行。C1 的挂载说明已可按步骤做，活 Session 还没有

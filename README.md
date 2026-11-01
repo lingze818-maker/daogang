@@ -55,7 +55,7 @@
 - `DAOGANG_EXECUTOR=dsh` 且没设 `DAOGANG_DSH_ROOT`：和以前一样，抛出「DSH 未接线」，这次派工落成招领。
 - 设了 `DAOGANG_DSH_ROOT`（且没有把执行口显式锁成 `local`）：适配器按路径加载该克隆里的 `DshExecutor`，调用 `start` → `enqueue('launch', assignmentId, { ticketId, assignmentId })`，`deliver` → `enqueue('delivery', ticketId, { ticketId })`。入队记在到岗侧的站位 effects 上，不写底座 SQLite，也不进私有 `launch()`。克隆加载失败同样落招领。
 - 卡片仍在审计行里。上游把卡片写进 worker prompt 的逻辑在私有 `launch()`，这一步不调用。
-- inbox Source 有可插入的 `cordis.patch.yml` 和 `apply`（登记带 `scope` 的 kind，循环里 `receive`）。本地 `LocalInbox` 仍是 CLI 的接单路径。`configured()` 和 Cordis 整链 **未验证**。
+- inbox Source 可以按 [packages/inbox-source/README.md](packages/inbox-source/README.md) 用 `file:` 或 `link:` 挂到本机 DSH 克隆，默认 `disabled: true`。本地 `LocalInbox` 仍是 CLI 的接单路径。`configured()` 在空 GitHub 配置下为 false，这一点在上游克隆里核对过；Cordis 整链进程和活 worker Session **未验证**。
 
 ## 状态
 
@@ -99,7 +99,7 @@ pnpm listen
 
 ### 可选：指向本机 DSH 克隆
 
-底座仓库单独 clone，不要复制进本仓。`@deepseek-ai/cordis` 与 `@deepseek-ai/dsh-*` 不是本仓的 dependencies，也不是 peerDependencies（pnpm 会把可选 peer 装进锁文件）。要让 Cordis 解析到本包，在那个克隆里用 `file:` 或 `pnpm link` 指向 `packages/inbox-source`。
+底座仓库单独 clone，不要复制进本仓。`@deepseek-ai/cordis` 与 `@deepseek-ai/dsh-*` 不是本仓的 dependencies，也不是 peerDependencies（pnpm 会把可选 peer 装进锁文件）。inbox Source 的挂载步骤、默认关闭的补丁，以及无密钥核对了什么，写在 [packages/inbox-source/README.md](packages/inbox-source/README.md)。
 
 ```bash
 # 终端 A：上游自己的目录，按它的 README 安装依赖。本仓测试不需要这一步。
@@ -113,10 +113,13 @@ pnpm dispatch -- "帮我补上安装说明"
 
 成功时输出里 `executor` 是 `dsh`，回执会话名仍是 `worker-<ticketId>`。这只说明克隆里的 `DshExecutor.start` 对站位 `effects.enqueue('launch', …)` 被调用了。失败时标准输出里有招领行，原因以 `DSH 加载失败` 或 `DSH 未接线` 开头。
 
-插件文件在 `packages/inbox-source/cordis.patch.yml`，默认 `disabled: true`。profile 里另写 `id: daogang-inbox` 且 `disabled: false` 才会启用。本包入口是 TypeScript 源文件，不是 cookbook 里的 `lib/*.js`。下面几件事没有在真实 Cordis 进程里跑过，保持 **未验证**：
+插件文件在 `packages/inbox-source/cordis.patch.yml`，默认 `disabled: true`。profile 里另写 `id: daogang-inbox` 且 `disabled: false` 才会启用。入口是 `lib/index.js`。下面几件在无密钥检查里已经对上，细节见 inbox Source 的说明：空 GitHub 配置时 `configured()` 为 false（`repositoryUnset`）；空飞书 CLI 不单独挡住；`SETUP_FIELDS` 没有 `inbox`；Zod schema 能被 `SourceRegistry` 收下，只有 `parse` 的 schema 会被拒。
 
-- `configured()` 在没有 GitHub / 飞书账号时会不会挡住 Source
-- `SourceRegistry` 是否接受这里的非 Zod `schema`
+`dsh@0.2.1-rc.3` 在临时 profile 上试过 `plugin add`（`file:` 与 `link:`）和 `--dump-config`：组合结果里有默认关闭的 `daogang-inbox`。那个 profile 没有启动，也没有装上 dsh-superagent。
+
+下面几件仍然 **未验证**：
+
+- 正在跑的 superagent 进程，以及 `orchestrator` 注入后的整链
 - enqueue 是否写进底座 Effects 的 SQLite，以及 worker Session 会不会起来
 - 卡片文本有没有进入 worker prompt
 
