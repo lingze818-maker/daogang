@@ -59,13 +59,13 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 > 宿主无关协议先定，再写适配器，避免绑死本家。
 > **宿主优先级（灵泽 2026-11-01）：对影 > zcode > Codex；对影适配与鎏虹协调。**
 
-- [-] E1 定义宿主适配接口：`HostAdapter`（发消息 / 开会话 / 打断 / 读上下文 / 鉴权）。**部分完成：** 接口和 `LocalCliHost` 在 `packages/host-adapter`，默认仍是本地 CLI。`DuiyingHost` 只是未接线桩。笔记：[notes/HostAdapter-对影-2026-11-01.md](./notes/HostAdapter-对影-2026-11-01.md)
+- [-] E1 定义宿主适配接口：`HostAdapter`（发消息 / 开会话 / 打断 / 读上下文 / 鉴权）。**部分完成：** 接口和 `LocalCliHost` 在 `packages/host-adapter`，默认仍是本地 CLI。对影口径已按鎏虹 2026-11-01（对影 main `5662082`）写进 [notes/HostAdapter-对影-2026-11-01.md](./notes/HostAdapter-对影-2026-11-01.md)。进窗注入和用户话钩子仍等灵泽。
 - [ ] E2 抽出核心包：`dispatcher` + `board` + `worker-runtime`（与 UI/CLI 解耦）
-- [ ] E3 **对影（duiying）适配器**（优先协调：与鎏虹对齐接口；能挂最好）
+- [-] E3 **对影（duiying）适配器**：映射、`auth`、`health` / `wake` 连通、打断另开、安全 `readContext` 已在 `DuiyingHost`。不进窗，不调 `/api/chat`。进窗与用户话回调等灵泽拍板后由对影侧 PR
 - [ ] E4 **zcode 适配器**（灵泽日常环境）
 - [ ] E5 **Codex 适配器**
 - [ ] E6 插件安装说明 + 最小配置样例（各宿主一份）
-- [ ] E7 回归：同一 mini-bench 在「本家 / 对影 / zcode / Codex」至少各跑通一条 happy path
+- [-] E7 回归：对影连通证明的 happy path 在 `packages/host-adapter` 单测里（mock 本机 HTTP，不打真对影、不烧 Key）。mini-bench 跨宿主还没有
 
 **完成标准：** 第三方仓能按文档步骤装上（pnpm/npm，或当时选定的安装方式）；换宿主不改核心分发逻辑。
 
@@ -90,4 +90,4 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 2. ~~A1–A4~~ 已完成
 3. 外围可用版已能演示派单、主窗桩、打断和招领。B2 仍半开：默认 `LocalExecutor`；可选 `DAOGANG_DSH_ROOT` 只接到 enqueue，没有底座会话
 4. B6 的 GIF 先不做；终端记录在 `docs/demo/peripheral.cast`
-5. E1 的接口骨架已在 `packages/host-adapter`（默认 Local；对影桩未接线）。完整适配器仍和 C 并行，放在可用版之后
+5. E1 接口在 `packages/host-adapter`（默认 Local）。对影已按六条口径做连通证明，进窗和用户话钩子等灵泽。完整跨宿主适配仍和 C 并行

@@ -15,12 +15,18 @@ export interface HostMessage {
   at: string
 }
 
+export type DuiyingMode = 'companion' | 'dev'
+
 export interface HostContext {
   sessionId: string
-  /** 本地是工单摘要或主窗那一句。没有记录时为空字符串。 */
+  /** 工单摘要。没有摘要时为空字符串，不回灌对话全文。 */
   text: string
   /** 交接备注，最多 200 字。没有则为空。 */
   handoffNote: string
+  /** 对影映射上的 mode。本地 CLI 不填。 */
+  mode?: DuiyingMode
+  /** 最近一句的角色和截断正文。没有则省略。 */
+  lastLine?: { role: string; text: string }
 }
 
 export interface HostAuth {
@@ -36,8 +42,15 @@ export interface SendMessageInput {
 
 export interface OpenSessionInput {
   kind: SessionKind
-  /** `kind: 'worker'` 时必填。会话名是 `worker-<ticketId>`。 */
+  /** `kind: 'worker'` 时必填。到岗会话名是 `worker-<ticketId>`。 */
   ticketId?: string
+  /** 对影映射用。本地 CLI 忽略。 */
+  mode?: DuiyingMode
+  /** 写进对影映射的工单摘要。过长会截断。本地 CLI 忽略。 */
+  summary?: string
+  /** 只进到岗映射，不出现在 readContext。本地 CLI 忽略。 */
+  channel?: string
+  peerId?: string
 }
 
 export interface InterruptIncoming {
