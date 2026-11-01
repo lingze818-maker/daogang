@@ -1,0 +1,17 @@
+{
+  "name": "@daogang/dispatcher",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "daogang": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@daogang/board": "workspace:*",
+    "@daogang/inbox-source": "workspace:*"
+  }
+}

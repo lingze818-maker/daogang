@@ -21,6 +21,9 @@ yarn-error.log*
 .env.*
 !.env.example
 
+# Local runtime (audit JSONL, inbox receipts)
+.daogang/
+
 # Local databases
 *.sqlite
 *.sqlite3
