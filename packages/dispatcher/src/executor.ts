@@ -1,13 +1,17 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
+import { openDshExecutor, type DshEnqueueEvent, type DshExecutorLike } from './dsh-load.ts'
+
 /**
  * 会话执行口。默认 LocalExecutor。
- * DshExecutorAdapter 不 import `@deepseek-ai/dsh-*`。
- * 上游形状见 dsh-superagent-prototype `src/executor/dsh.ts`：
+ * DshExecutorAdapter 不在顶层 import `@deepseek-ai/dsh-*`。
+ * 设置了 DAOGANG_DSH_ROOT 时，按路径加载克隆里的 `DshExecutor`，
+ * 调用公开的 `start` / `deliver`。上游形状（`src/executor/dsh.ts`）：
  * `start` → `effects.enqueue('launch', assignmentId, { ticketId, assignmentId })`
  * `deliver` → `effects.enqueue('delivery', ticketId, { ticketId })`
  * 会话名是 `worker-${ticketId}`。
+ * 站位 effects 不跑 handler，所以没有私有 launch()，也没有活的 worker Session。
  */
 
 export interface ExecutorCard {
@@ -82,10 +86,28 @@ export class DshNotWiredError extends Error {
   readonly call: DshCall
 
   constructor(call: DshCall) {
-    super(`DSH 未接线：${call.method} 会 enqueue('${call.effect}')。未安装 @deepseek-ai/dsh-*`)
+    super(`DSH 未接线：${call.method} 会 enqueue('${call.effect}')。未设置 DAOGANG_DSH_ROOT`)
     this.name = 'DshNotWiredError'
     this.call = call
   }
+}
+
+/** 根目录已设置，但克隆里的 DshExecutor 没能完成这次 enqueue。 */
+export class DshLoadError extends Error {
+  readonly call: DshCall
+
+  constructor(call: DshCall, cause: unknown) {
+    const detail = cause instanceof Error ? cause.message : String(cause)
+    const one = detail.replace(/\s+/g, ' ').trim() || '加载失败'
+    const message = `DSH 加载失败：${call.method} enqueue('${call.effect}')。${one}`
+    super(Array.from(message).slice(0, 110).join(''))
+    this.name = 'DshLoadError'
+    this.call = call
+  }
+}
+
+export interface DshEnqueue extends DshCall {
+  key: string
 }
 
 interface LaunchRecord extends ExecutorAssignment {
@@ -139,20 +161,69 @@ export class LocalExecutor implements ExecutorPort {
   }
 }
 
-/** 骨架。方法体只算出上游调用点，然后拒绝执行。 */
+/**
+ * 未设置根目录时与以前一样：抛出未接线错误，由分发器落招领。
+ * 设置了根目录时构造克隆里的 DshExecutor，并确认它真的 enqueue 了对应 effect。
+ */
 export class DshExecutorAdapter implements ExecutorPort {
   readonly kind = 'dsh' as const
+  readonly root: string | undefined
+  readonly enqueued: DshEnqueue[] = []
+  loadedFrom: string | undefined
+
+  constructor(options: { root?: string } = {}) {
+    const root = options.root?.trim()
+    this.root = root || undefined
+  }
 
   async start(assignment: ExecutorAssignment): Promise<ExecutorLaunch> {
-    throw new DshNotWiredError(planDshStart(assignment))
+    const planned = planDshStart(assignment)
+    await this.invoke(planned, (executor) => {
+      executor.start({ id: assignment.ticketId }, { id: assignment.assignmentId })
+    }, assignment.assignmentId)
+    return { runtime: 'dsh', session: planned.session, ticketId: assignment.ticketId }
   }
 
   async deliver(input: Delivery): Promise<void> {
-    throw new DshNotWiredError(planDshDeliver(input))
+    const planned = planDshDeliver(input)
+    await this.invoke(planned, (executor) => {
+      executor.deliver({ id: input.ticketId }, { id: input.ticketId })
+    }, input.ticketId)
+  }
+
+  private async invoke(planned: DshCall, run: (executor: DshExecutorLike) => void, key: string): Promise<void> {
+    if (!this.root) throw new DshNotWiredError(planned)
+    let opened: Awaited<ReturnType<typeof openDshExecutor>>
+    try {
+      opened = await openDshExecutor(this.root)
+      this.loadedFrom = opened.entry
+      const before = opened.events.length
+      run(opened.executor)
+      const hit = opened.events.slice(before).find((event) => event.kind === planned.effect)
+      assertEnqueue(hit, planned, key)
+    } catch (error) {
+      if (error instanceof DshNotWiredError) throw error
+      throw new DshLoadError(planned, error)
+    }
+    this.enqueued.push({ ...planned, key })
+  }
+}
+
+function assertEnqueue(hit: DshEnqueueEvent | undefined, planned: DshCall, key: string): void {
+  if (!hit) throw new Error(`DshExecutor.${planned.method} 没有 enqueue('${planned.effect}')`)
+  if (hit.key !== key) throw new Error(`enqueue 的 key 是 ${hit.key}，需要 ${key}`)
+  if (hit.payload.ticketId !== planned.payload.ticketId) {
+    throw new Error('enqueue 的 ticketId 与派工不一致')
+  }
+  if (planned.payload.assignmentId !== undefined && hit.payload.assignmentId !== planned.payload.assignmentId) {
+    throw new Error('enqueue 的 assignmentId 与派工不一致')
   }
 }
 
 export function createExecutor(home: string, env: NodeJS.ProcessEnv = process.env): ExecutorPort {
-  if (env.DAOGANG_EXECUTOR?.trim() === 'dsh') return new DshExecutorAdapter()
+  const requested = env.DAOGANG_EXECUTOR?.trim()
+  const root = env.DAOGANG_DSH_ROOT?.trim() || undefined
+  if (requested === 'local') return new LocalExecutor(join(home, 'executor.json'))
+  if (requested === 'dsh' || root) return new DshExecutorAdapter({ root })
   return new LocalExecutor(join(home, 'executor.json'))
 }

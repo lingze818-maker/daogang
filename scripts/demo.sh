@@ -7,6 +7,8 @@ if [[ -z "${DAOGANG_HOME:-}" ]]; then
   export DAOGANG_HOME
 fi
 export DEEPSEEK_API_KEY=""
+export DAOGANG_EXECUTOR=local
+export DAOGANG_DSH_ROOT=
 unset DAOGANG_FAIL_LANE
 
 echo "== home ${DAOGANG_HOME}"

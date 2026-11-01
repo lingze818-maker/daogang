@@ -3,6 +3,7 @@ export { loadEnvFile, readFailLane } from './env.ts'
 export {
   createExecutor,
   DshExecutorAdapter,
+  DshLoadError,
   DshNotWiredError,
   LocalExecutor,
   planDshDeliver,
@@ -10,6 +11,7 @@ export {
   workerSessionId,
   type Delivery,
   type DshCall,
+  type DshEnqueue,
   type ExecutorAssignment,
   type ExecutorLaunch,
   type ExecutorPort,

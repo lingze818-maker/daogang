@@ -6,6 +6,7 @@ import { LocalInbox } from '@daogang/inbox-source'
 import { describe, expect, it } from 'vitest'
 import { createFlashRouter } from '../src/flash.ts'
 import { DshExecutorAdapter, LocalExecutor, type ExecutorPort } from '../src/executor.ts'
+import { writeDshFixture } from './dsh-fixture.ts'
 import { DaogangError, dispatchLine, type Runtime } from '../src/run.ts'
 import { WorkerLane } from '../src/worker.ts'
 
@@ -199,6 +200,23 @@ describe('dispatchLine', () => {
     expect(failed.claims[0]?.reason).toContain('launch')
     expect(dsh.workers.load().busy).toBeNull()
     expect(dsh.board.list()[0]?.status).toBe('claim')
+
+    const home3 = mkdtempSync(join(tmpdir(), 'daogang-run-'))
+    const rooted = runtime(home3, undefined, ['abcd1234'], new DshExecutorAdapter({
+      root: writeDshFixture(join(home3, 'dsh')),
+    }))
+    const wired = await dispatchLine('帮我补上安装说明', rooted, { messageId: 'wired' })
+    expect(wired.claims).toEqual([])
+    expect(wired.executor).toBe('dsh')
+    expect(wired.receipts[0]?.session).toBe('worker-abcd1234')
+    expect(rooted.workers.load().busy?.session).toBe('worker-abcd1234')
+
+    const home4 = mkdtempSync(join(tmpdir(), 'daogang-run-'))
+    const missing = runtime(home4, undefined, undefined, new DshExecutorAdapter({ root: join(home4, 'missing') }))
+    const broken = await dispatchLine('帮我补上安装说明', missing, { messageId: 'missing' })
+    expect(broken.claims[0]?.reason).toContain("enqueue('launch')")
+    expect(missing.workers.load().busy).toBeNull()
+    expect(missing.board.list()[0]?.status).toBe('claim')
   })
 
   it('rejects an empty line before writing', async () => {

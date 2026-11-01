@@ -26,10 +26,10 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 
 ## 阶段 B · 实时分发 MVP（约 4–6 天）— 可用版核心
 
-**外围可用版 `0.1.0-peripheral`：** `pnpm dispatch`、主窗桩、本地打断、招领和 `bash scripts/demo.sh` 可以无密钥演示。执行口默认 `LocalExecutor`。`DshExecutorAdapter` 只写出 Assignment 的 `start`/`launch` 和 `deliver`/`delivery` 调用点，不装 `@deepseek-ai/dsh-*`。B2 的真会话不起。GIF 先不做。
+**外围可用版 `0.1.0-peripheral`：** `pnpm dispatch`、主窗桩、本地打断、招领和 `bash scripts/demo.sh` 可以无密钥、无 DSH 安装演示。执行口默认 `LocalExecutor`。设了 `DAOGANG_DSH_ROOT` 时，`DshExecutorAdapter` 按路径调用克隆里的 `start`→`enqueue('launch')` 与 `deliver`→`enqueue('delivery')`；没设时仍是未接线并落招领。真 worker Session 不起。GIF 先不做。
 
 - [x] B1 分发器常驻进程：输入 → `{target, urgency, cards}`（Flash 路由 + 关键词兜底）
-- [ ] B2 角色路由到 Ticket Session：派单后由底座 Assignment 起 `worker-<ticketId>` Session，按卡片注入上下文（产品层可保留多个角色，不是 3 个长驻进程）。`ExecutorPort` 已接上，默认 `LocalExecutor` 按卡片记下派工；`DAOGANG_EXECUTOR=dsh` 只落到招领。没有真的 `DshExecutor.start`
+- [ ] B2 角色路由到 Ticket Session：派单后由底座 Assignment 起 `worker-<ticketId>` Session，按卡片注入上下文（产品层可保留多个角色，不是 3 个长驻进程）。**默认 Local。** `LocalExecutor` 按卡片记下派工。可选 `DAOGANG_DSH_ROOT`（或 `DAOGANG_EXECUTOR=dsh` 且给出该根）时，适配器动态加载克隆里的 `DshExecutor`，只调用公开的 `start` / `deliver`，确认 enqueue 了 `launch` / `delivery`。未设置根目录时抛未接线并落招领。`pnpm test` 不装 dsh、不读这个变量。还没有活的 worker Session，卡片没有进 worker prompt，`configured()` 与 Cordis 整链未验证
 - [x] B3 mixed 双投：闲聊回主窗 + 任务立案，互不阻塞。主窗是本地 `main-stub`，不是底座 Channel
 - [x] B4 打断与快照：高优先级打断低优先级；看板留 ≤200 字交接备注。旧工单留在本地队列里，没有单独的 resume 命令，也没有回到 DSH
 - [x] B5 分发失败自动落板：目标离线/超时 → 转招领安全网。触发的是本地 receive 失败（含演示开关），不是底座超时探测
@@ -88,6 +88,6 @@ _主责：鎏涟 · 更新：2026-11-01（外围可用版 `0.1.0-peripheral`）_
 
 1. ~~G1 建仓~~ 文档引导已进仓；阶段 B 脚手架在 `packages/`
 2. ~~A1–A4~~ 已完成
-3. 外围可用版已能演示派单、主窗桩、打断和招领。B2 仍开着：只有 `LocalExecutor`，没有底座会话
+3. 外围可用版已能演示派单、主窗桩、打断和招领。B2 仍半开：默认 `LocalExecutor`；可选 `DAOGANG_DSH_ROOT` 只接到 enqueue，没有底座会话
 4. B6 的 GIF 先不做；终端记录在 `docs/demo/peripheral.cast`
 5. 再排 C / E（插件）与 D（评测）谁先：默认 **E 的接口草图可与 C 并行**，完整适配器放在可用版之后

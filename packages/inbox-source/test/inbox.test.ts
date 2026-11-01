@@ -1,8 +1,20 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { apply, inboxKind, inboxScope, inboxTrigger, LocalInbox, type Decision } from '../src/index.ts'
+import {
+  apply,
+  InboxFeed,
+  inboxKind,
+  inboxScope,
+  inboxTrigger,
+  inject,
+  LocalInbox,
+  name,
+  type Decision,
+  type InboxHealth,
+  type InboxLoopHost,
+} from '../src/index.ts'
 
 const decision: Decision = {
   target: 'worker',
@@ -67,5 +79,110 @@ describe('inbox source', () => {
     const seen: string[] = []
     apply({ orchestrator: { sources: { register: (kind) => seen.push(kind.kind) } } })
     expect(seen).toEqual([inboxKind.kind])
+    expect(name).toBe('daogang-inbox')
+    expect([...inject]).toEqual(['orchestrator'])
+    expect(inboxKind.scope({ meta: { conversation: 'other' } }, { conversation: 'cli' }).reason).toBe('conversation_not_listed')
+    expect(inboxKind.policy.rows({ conversation: 'cli' })[0]?.id).toBe('cli')
+  })
+
+  it('registers scope on a cordis-shaped host and receives one trigger', async () => {
+    const feed = new InboxFeed()
+    const received: string[] = []
+    let registered: typeof inboxKind | undefined
+    const unregistered: string[] = []
+    const disposers: Array<() => void | Promise<void>> = []
+    let release: () => void = () => {}
+    const receivedGate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const source: InboxLoopHost = {
+      ready: Promise.resolve(),
+      configured: () => true,
+      config: () => ({ conversation: 'cli' }),
+      receive: (item) => {
+        received.push(item.id)
+        release()
+        return 'stored'
+      },
+      report: () => {},
+    }
+    apply({
+      inboxFeed: feed,
+      orchestrator: {
+        sources: {
+          register: (kind) => {
+            registered = kind
+          },
+          unregister: (kind) => unregistered.push(kind),
+        },
+        context: (kind) => {
+          expect(kind.scope({ meta: { conversation: 'cli' } }, { conversation: 'cli' }).listened).toBe(true)
+          return source
+        },
+      },
+      effect(run) {
+        const done = run()
+        if (typeof done === 'function') disposers.push(done)
+      },
+    })
+    expect(registered?.kind).toBe('inbox')
+    const built = trigger()
+    feed.push({ ...built, meta: { ...built.meta, conversation: 'other' } })
+    await receivedGate
+    expect(received).toEqual(['inbox:m1:task'])
+    for (const dispose of disposers.reverse()) await dispose()
+    expect(unregistered).toEqual(['inbox'])
+  })
+
+  it('reports setupPending and does not receive while setup is waiting', async () => {
+    const feed = new InboxFeed()
+    const received: string[] = []
+    const reports: InboxHealth[] = []
+    let release: () => void = () => {}
+    const reported = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    apply({
+      inboxFeed: feed,
+      orchestrator: {
+        sources: { register: () => {} },
+        context: () => ({
+          ready: Promise.resolve(),
+          configured: () => false,
+          receive: (item) => {
+            received.push(item.id)
+            return 'stored'
+          },
+          report: (_entry, health) => {
+            reports.push(health)
+            release()
+          },
+        }),
+      },
+      effect(run) {
+        run()
+      },
+    })
+    feed.push(trigger())
+    await reported
+    expect(received).toEqual([])
+    expect(reports[0]).toMatchObject({ state: 'paused', code: 'setupPending' })
+  })
+
+  it('ships a disabled cordis patch and a package export', () => {
+    const patch = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
+    expect(patch).toContain('id: daogang-inbox')
+    expect(patch).toContain("name: '@daogang/inbox-source'")
+    expect(patch).toContain('disabled: true')
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+      exports: { '.': string }
+      dependencies?: Record<string, string>
+      peerDependencies?: Record<string, string>
+      dsh?: { bundle?: { patch?: string } }
+    }
+    expect(pkg.exports['.']).toBe('./src/index.ts')
+    expect(pkg.dependencies?.['@deepseek-ai/cordis']).toBeUndefined()
+    expect(pkg.peerDependencies?.['@deepseek-ai/cordis']).toBeUndefined()
+    expect(pkg.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
   })
 })

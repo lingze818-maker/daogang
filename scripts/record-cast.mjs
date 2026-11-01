@@ -9,7 +9,14 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const cli = join(root, 'packages/dispatcher/src/cli.ts')
 const home = mkdtempSync(join(tmpdir(), 'daogang-cast-'))
-const env = { ...process.env, DAOGANG_HOME: home, DEEPSEEK_API_KEY: '', DAOGANG_FAIL_LANE: '' }
+const env = {
+  ...process.env,
+  DAOGANG_HOME: home,
+  DEEPSEEK_API_KEY: '',
+  DAOGANG_FAIL_LANE: '',
+  DAOGANG_EXECUTOR: 'local',
+  DAOGANG_DSH_ROOT: '',
+}
 const steps = [
   ['dispatch', '--', '帮我补上安装说明'],
   ['dispatch', '--', '谢谢，马上帮我修一下 bug'],

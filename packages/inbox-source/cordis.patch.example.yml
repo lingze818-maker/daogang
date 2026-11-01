@@ -1,8 +1,0 @@
-# 示例，不是本仓的 Cordis bundle，也不会被安装脚本加载。
-# 对照上游 docs/008-cookbook.md 第 10 步。peer（@deepseek-ai/cordis 与 dsh-*）本批不安装。
-#
-# 接到真实 DSH 配置时，在 profile 的 cordis.patch.yml 里插入并启用：
-#
-# - id: daogang-inbox
-#   name: daogang/inbox-source
-#   disabled: true
