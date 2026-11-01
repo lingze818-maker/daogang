@@ -1,6 +1,6 @@
 # inbox Source
 
-本包是到岗的收件 Source。CLI 仍用 `LocalInbox.receive`，不经过 Cordis：
+本包是到岗的收件 Source，也是可以挂进 DeepSeek Harness 的 Cordis 插件。CLI 仍用 `LocalInbox.receive`，不经过 Cordis：
 
 - 任务腿分配一个 `worker-<ticketId>` 会话名
 - 闲聊腿记到 `main`
@@ -18,16 +18,88 @@
 | --- | --- | --- |
 | 译成 Trigger（稳定 id、Thread、actor、`addressed`） | `inboxTrigger` | CLI 每条输入 `addressed: direct` |
 | `scope`，未列入的对话仍交给 receive | `inboxKind.scope` → `inboxScope` | 只看 `meta.conversation`。真实 Engine 未挂 |
-| Policy 的 explicit 与 admission `rows` | `inboxKind.policy` | 形状在。不是 Zod，名单未进底座 Policy |
+| Policy 的 explicit 与 admission `rows` | `inboxKind.policy`，Zod `schema` | 默认 `allowed: []`。`rows` 的形状在；名单还没有进底座已保存的 Policy |
 | Channel：`send` 幂等，只有永久失败才 `gone` | 分发器里的 `main-stub` | 主窗是本地桩，不是底座 Channel.send |
 | `threadContext` | — | 未做 |
-| 插件 `name` / `inject` / `apply`，`effect` 里 register，循环里 `receive` | `apply` + `watchInbox` | 宿主没有 `effect` 时只 `register`。有 `context()` 时用它，不 import `host.ts` |
-| `package.json` exports、`cordis.patch.yml` insert | `exports["."]`、`cordis.patch.yml` | 默认 `disabled: true`。入口是 `.ts`，不是 `lib/*.js` |
+| 插件 `name` / `inject` / `apply`，`effect` 里 register，循环里 `receive` | `apply` + `watchInbox` | `register` 的返回值当作卸载函数，和 `SourceRegistry.register` 一样 |
+| `package.json` exports、`cordis.patch.yml` insert | `exports["."]` → `lib/index.js`、`cordis.patch.yml` | 默认 `disabled: true`。Node 不剥离 `node_modules` 里的 TypeScript，所以入口是构建产物 |
 
-`@deepseek-ai/cordis` 和 `@deepseek-ai/dsh-*` 都不是本包的 dependency 或 peerDependency。pnpm 会把可选 peer 写进锁文件并装上，所以这里不声明，改由文档说明：执行口用 `DAOGANG_DSH_ROOT` 指到本机克隆；要让 Cordis 解析到本包，在那个克隆里用 `file:` 或 `pnpm link`。
+`@deepseek-ai/cordis` 和 `@deepseek-ai/dsh-*` 都不是本包的 dependency 或 peerDependency。唯一的依赖是 `zod@4.4.3`，和上游锁定的主版本一致，用来提供 `schema.parse` / `safeParse`。pnpm 会把可选 peer 写进锁文件并装上，所以这里不声明 cordis。执行口用 `DAOGANG_DSH_ROOT` 指到本机克隆；要让 Cordis 解析到本包，在 DSH profile 里用 `file:` 或 `link:`。
 
 不能依赖的内部类见仓库 [底座结构笔记 §6](../../docs/notes/底座结构笔记-2026-11-01.md)。本包不 import `Engine`、`Store`、`DshExecutor`。
 
+## 挂到本机 DSH 克隆
+
+上游单独 clone，不要复制进本仓。下面的安装不需要 API key。`dsh` 的版本号来自上游 `docs/006-deployment.md` 里当时写明的公开 pin；`engines.dsh` 仍是 `^0.2.1-alpha.2`。
+
+```bash
+# 终端 A：上游自己的目录
+git clone https://github.com/deepseek-ai/dsh-superagent-prototype.git
+cd dsh-superagent-prototype
+pnpm install && pnpm build
+
+# 还没有 superagent profile 时，按上游 Install 一节（会装公开的 dsh CLI，不需要模型 key）：
+# npm install -g @deepseek-ai/dsh@0.2.1-rc.3
+# dsh superagent --from-default-profile web --dump-config > /dev/null
+# dsh plugin --profile superagent add "link:$PWD"
+
+# 终端 B：本仓。把 inbox Source 装进同一个 profile。两条里走一条。
+# link: 与上游给自己 bundle 的写法相同。file: 一样能被 Node 解析。
+dsh plugin --profile superagent add "link:$PWD/packages/inbox-source"
+# dsh plugin --profile superagent add "file:$PWD/packages/inbox-source"
+```
+
+改过 `src/` 之后先构建，再挂。仓库里已经有一份 `lib/`，没改源码就不用再构建：
+
+```bash
+pnpm build:inbox
+```
+
+`dsh plugin add` 读到 `package.json` 里的 `dsh.bundle.patch`，把本包加进 profile 的 bundle 列表。补丁 [cordis.patch.yml](./cordis.patch.yml) 插入 `id: daogang-inbox`，**默认 `disabled: true`**。Cordis 对 `disabled: true` 的条目不 import。
+
+Node 拒绝剥离 `node_modules` 里的 `.ts`（`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`）。`file:` 会进 pnpm 的 store，因此入口必须是 `lib/index.js`。`link:` 通常是指到仓库目录的符号链接，解析到的也是这份构建产物。
+
+要打开，把 [examples/profile.cordis.patch.yml](./examples/profile.cordis.patch.yml) 里的两行合并进 profile 的 `cordis.patch.yml`（上游示例是 `~/.dsh/profiles/superagent/cordis.patch.yml`）。不要把本包补丁里的 `disabled` 改成 `false` 再交回上游。
+
+没有 `dsh` CLI 时，可以先只检查包能否被解析。在一个空目录里：
+
+```bash
+pnpm add @daogang/inbox-source@file:<到岗仓>/packages/inbox-source
+node --input-type=module -e "import('@daogang/inbox-source').then(m => console.log(m.name, typeof m.apply, typeof m.inboxKind.schema.safeParse))"
+```
+
+期望打出 `daogang-inbox function function`。
+
+对照克隆里的注册表（不启动 DSH，不读密钥）：
+
+```bash
+# 在本仓。DAOGANG_DSH_ROOT 指向上游克隆，且该目录已经 pnpm install。
+DAOGANG_DSH_ROOT=<上游克隆> node scripts/check-inbox-attach.mjs
+```
+
+没设这个变量时，脚本只检查本包的 export、补丁和 Zod，然后退出 0。`pnpm test` 不读它。
+
+## 默认行为
+
+- 插件名 `daogang-inbox`，`inject` 是 `orchestrator`。这个服务由上游 `Runtime` 提供，和 `github-watch` 一样。
+- 配置 schema 默认 `{ conversation: 'cli' }`。只匹配这一条对话。多余的键或非法对话名让 `safeParse` 失败，`SourceRegistry` 会关掉该实例并回落到这份默认。
+- 策略 schema 默认 `{ allowed: [] }`。没人被写成可以发起工作。
+- `configured()` 为 false 时循环上报 `setupPending` 并且不 `receive`。底座的 `configured()` 要等 GitHub 仓库和智能体 CLI 通过 Setup；飞书可以空着。`SETUP_FIELDS` 里没有 `inbox`。
+
+## 无密钥核对（2026-11-02）
+
+上游是公开仓 `main` 的 `6337fc823ce20251c8de8085948165c81aaa701e`。克隆只留在检查机上，没有抄进本仓，也没有改它。没有 API key，没有调用 `gh` / `lark-cli`。
+
+已经对上的：
+
+- `pnpm add` 的 `file:` 和 `link:` 都能 `import('@daogang/inbox-source')`，得到 `daogang-inbox` 和 `schema.safeParse`。改成 `lib/index.js` 之前，`file:` 进 `node_modules` 会在加载 `.ts` 时被 Node 拒绝。
+- 已发布的 `@deepseek-ai/cordis@4.0.5` 与 `@deepseek-ai/cordis-plugin-loader@1.0.6`：`disabled: true` 不加载模块；打开之后 `apply` 会 `register`。`safeParse({})` 成功，非法配置失败。宿主 `configured()` 为 false 时上报 `setupPending`，不 `receive`。这是临时 loader 加一个假的 `orchestrator`，不是 dsh-superagent 进程。
+- 克隆里的 `SourceRegistry`：只有 `parse`、没有 `safeParse` 的 schema，`instances()` 抛 `safeParse is not a function`。本包的 Zod schema 可以被登记。存进去的非法配置会把实例关掉，并回落到 `{ conversation: 'cli' }`。`scope` 对其他对话给出 `conversation_not_listed`。`register` 的返回值能卸掉 kind。
+- 克隆里的 `Setup.run`（空 settings）：返回 false，`configured()` 为 false，`problem.code` 是 `repositoryUnset`（位置 `github`）。空飞书 CLI 的 `resolveFeishuBot` 得到 `undefined`，不单独失败。`SETUP_FIELDS` 只有 `github` 的 `repository` / `cli` 和 `feishu` 的 `cli`，没有 `inbox`。自定义 Source 不加 Setup 字段，但没配 GitHub 仓库时整个 runtime 的 `configured()` 仍是 false。
+- `dsh@0.2.1-rc.3`：用 web 模板建了一个临时 profile，没有装 dsh-superagent 本体，也没有启动进程。`dsh plugin --profile superagent add` 的 `file:` 和随后的 `link:` 都成功，本包进入 dependencies 和 `dsh.profile.bundles`。`dsh --profile superagent --dump-config` 退出 0，组合结果里有 `id: daogang-inbox`、`name: '@daogang/inbox-source'`、`disabled: true`。
+
+`scripts/check-inbox-attach.mjs` 复跑的是 `SourceRegistry` 和 `Setup` 这一段。上游源码用了参数属性，脚本会自己加上 Node 的 `--experimental-transform-types`，不必先 `pnpm build` 上游。
+
 ## 还没验证
 
-自定义 Source 在没有 GitHub / 飞书账号时，Setup 会不会挡住 `configured()`，记在结构笔记 §7 第 7 条。插件在宿主提供 `configured()` 且返回 false 时会上报 `setupPending` 并不 `receive`。本仓没有在真实 Cordis 进程里调用过它，所以这仍是 **未验证**。`SourceRegistry` 是否接受非 Zod 的 `schema`，同样未验证。
+没有启动 superagent 进程，临时 profile 里也没有 dsh-superagent 的 `orchestrator`。活的 worker Session、卡片进 worker prompt、enqueue 写进底座 SQLite，都没有。Channel 和 `threadContext` 没做。临时 loader 不是上游 `Runtime` 那条整链。

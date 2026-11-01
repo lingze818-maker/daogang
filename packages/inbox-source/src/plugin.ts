@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { inboxScope, type InboxScopeResult, type InboxTrigger } from './trigger.ts'
 
 /**
@@ -5,7 +6,8 @@ import { inboxScope, type InboxScopeResult, type InboxTrigger } from './trigger.
  * 不 import `@deepseek-ai/cordis` 或 `@deepseek-ai/dsh-*`。
  * 宿主有 `effect` 时按食谱登记 kind，并在 `context()` 给出的 SourceContext 上走 receive。
  * 没有 `effect` 时只 `register`，本地 `LocalInbox` 不受影响。
- * `configured()` 与真实 Cordis 整链未在本仓验证。
+ * schema 是 Zod（`parse` / `safeParse`）。`configured()` 由宿主给出；
+ * 没配 GitHub 仓库时底座 Setup 会让它返回 false，本插件此时只报 `setupPending`。
  */
 
 export interface InboxSourceConfig {
@@ -13,17 +15,35 @@ export interface InboxSourceConfig {
 }
 
 const CONVERSATION = /^[a-z0-9-]+$/
+const CONFIG_ERROR = 'inbox 配置 conversation 只允许小写字母、数字和连字符'
+
+/**
+ * 对照 cookbook 的 Zod schema：`parse` 与 `safeParse` 都在。
+ * 默认对话是 `cli`，只听这一条，不是「全部对话」。
+ * `parseInboxConfig` 把缺省和空字符串收成 `cli`。schema 对空字符串和多余的键 `safeParse` 失败。
+ * 底座 `SourceRegistry` 在 `safeParse` 失败时改用 `parse({})` 并关掉这一实例。
+ */
+export const inboxConfigSchema = z.object({
+  conversation: z.string().regex(CONVERSATION).default('cli'),
+}).strict()
 
 export function parseInboxConfig(input: unknown): InboxSourceConfig {
-  const raw = input && typeof input === 'object' && 'conversation' in input
-    ? (input as { conversation?: unknown }).conversation
-    : undefined
-  const conversation = raw === undefined || raw === '' ? 'cli' : String(raw)
-  if (!CONVERSATION.test(conversation)) {
-    throw new Error('inbox 配置 conversation 只允许小写字母、数字和连字符')
-  }
-  return { conversation }
+  const record = input && typeof input === 'object' && !Array.isArray(input)
+    ? { ...(input as Record<string, unknown>) }
+    : {}
+  if (record.conversation === undefined || record.conversation === '') delete record.conversation
+  const parsed = inboxConfigSchema.safeParse(record)
+  if (!parsed.success) throw new Error(CONFIG_ERROR)
+  return parsed.data
 }
+
+/** 策略片段。默认 `allowed` 为空：没人能发起工作，除非配置里写上发送者。 */
+export const inboxPolicySchema = z.object({
+  allowed: z.array(z.object({
+    id: z.string().min(1),
+    name: z.string().trim().max(100).optional(),
+  }).strict()).default([]),
+}).strict()
 
 export interface InboxAdmissionRow {
   id: string
@@ -40,8 +60,7 @@ export const inboxKind = {
     en: 'Turns one peripheral dispatch line into a Trigger.',
   },
   health: ['inbox'] as const,
-  /** 结构上的 parse，不是 Zod。Cordis 表单是否认这个 schema，未验证。 */
-  schema: { parse: parseInboxConfig },
+  schema: inboxConfigSchema,
   fields: [
     {
       key: 'conversation',
@@ -54,6 +73,18 @@ export const inboxKind = {
     return inboxScope(input.meta ?? {}, parseInboxConfig(config))
   },
   policy: {
+    schema: inboxPolicySchema,
+    fields: [
+      {
+        key: 'allowed',
+        type: 'rows' as const,
+        label: { zh: '能发起工作的发送者', en: 'Senders who may originate work' },
+        columns: [
+          { key: 'id', type: 'text' as const, label: { zh: '发送者', en: 'Sender' } },
+          { key: 'name', type: 'text' as const, label: { zh: '名字', en: 'Name' }, optional: true },
+        ],
+      },
+    ],
     explicit: {
       zh: '命令行直接对智能体说话。',
       en: 'The command line speaks to the agent directly.',
@@ -87,7 +118,8 @@ export interface InboxLoopHost {
 
 export interface InboxHostSketch {
   sources: {
-    register(kind: typeof inboxKind): void
+    /** 底座 `SourceRegistry.register` 返回卸载函数。草图宿主可以不返回。 */
+    register(kind: typeof inboxKind): void | (() => void)
     unregister?(kind: string): void
   }
   /** 上游 SourceHost.context。有则用它拿 SourceContext，不 import host.ts。 */
@@ -198,17 +230,17 @@ async function startInboxLoop(orchestrator: InboxHostSketch, feed: InboxFeed, si
 }
 
 export function apply(ctx: InboxPluginContext): void {
-  const register = (): void => {
-    ctx.orchestrator.sources.register(inboxKind)
-  }
+  const register = (): (() => void) | void => ctx.orchestrator.sources.register(inboxKind)
   if (typeof ctx.effect !== 'function') {
     register()
     return
   }
-  const feed = ctx.inboxFeed ?? new InboxFeed()
+  // Cordis 的 context 读未 inject 的字段会抛错。inboxFeed 只给测试塞队列，真宿主上没有这个字段。
+  const feed = 'inboxFeed' in ctx && ctx.inboxFeed instanceof InboxFeed ? ctx.inboxFeed : new InboxFeed()
   ctx.effect(() => {
-    register()
+    const dispose = register()
     return () => {
+      if (typeof dispose === 'function') dispose()
       ctx.orchestrator.sources.unregister?.(inboxKind.kind)
     }
   }, 'inbox: source kind')

@@ -1,0 +1,5 @@
+# 片段，不是本包的 bundle 补丁。复制到 DSH profile 的 cordis.patch.yml。
+# 本包自己的 cordis.patch.yml 保持 disabled: true。profile 用同一个 id 把它打开。
+# 没有 API key 也能写上这一段。进程仍要等底座的 GitHub Setup，本片段不负责起 worker Session。
+- id: daogang-inbox
+  disabled: false

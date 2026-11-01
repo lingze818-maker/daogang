@@ -3,7 +3,9 @@ export { LocalInbox, type InboxReceipt } from './local-inbox.ts'
 export {
   apply,
   InboxFeed,
+  inboxConfigSchema,
   inboxKind,
+  inboxPolicySchema,
   inject,
   name,
   parseInboxConfig,

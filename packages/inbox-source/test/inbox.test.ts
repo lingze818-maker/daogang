@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest'
 import {
   apply,
   InboxFeed,
+  inboxConfigSchema,
   inboxKind,
+  inboxPolicySchema,
   inboxScope,
   inboxTrigger,
   inject,
@@ -77,7 +79,7 @@ describe('inbox source', () => {
 
   it('registers the kind on a sketch host', () => {
     const seen: string[] = []
-    apply({ orchestrator: { sources: { register: (kind) => seen.push(kind.kind) } } })
+    apply({ orchestrator: { sources: { register: (kind) => { seen.push(kind.kind) } } } })
     expect(seen).toEqual([inboxKind.kind])
     expect(name).toBe('daogang-inbox')
     expect([...inject]).toEqual(['orchestrator'])
@@ -169,20 +171,102 @@ describe('inbox source', () => {
     expect(reports[0]).toMatchObject({ state: 'paused', code: 'setupPending' })
   })
 
-  it('ships a disabled cordis patch and a package export', () => {
+  it('ships a disabled cordis patch and a package export', async () => {
     const patch = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
     expect(patch).toContain('id: daogang-inbox')
     expect(patch).toContain("name: '@daogang/inbox-source'")
     expect(patch).toContain('disabled: true')
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
-      exports: { '.': string }
+      exports: { '.': { types: string; default: string } }
       dependencies?: Record<string, string>
       peerDependencies?: Record<string, string>
       dsh?: { bundle?: { patch?: string } }
     }
-    expect(pkg.exports['.']).toBe('./src/index.ts')
+    expect(pkg.exports['.'].default).toBe('./lib/index.js')
+    expect(pkg.exports['.'].types).toBe('./lib/index.d.ts')
     expect(pkg.dependencies?.['@deepseek-ai/cordis']).toBeUndefined()
     expect(pkg.peerDependencies?.['@deepseek-ai/cordis']).toBeUndefined()
+    expect(pkg.dependencies?.zod).toBe('4.4.3')
     expect(pkg.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
+    const built = await import('../lib/index.js')
+    expect(built.name).toBe('daogang-inbox')
+    expect(typeof built.apply).toBe('function')
+    expect(typeof built.inboxKind.schema.safeParse).toBe('function')
+    expect(built.inboxKind.schema.parse({})).toEqual({ conversation: 'cli' })
+  })
+
+  it('parses config and policy with zod safeParse, and rejects a bad conversation', () => {
+    expect(inboxConfigSchema.safeParse({}).success).toBe(true)
+    expect(inboxConfigSchema.parse({})).toEqual({ conversation: 'cli' })
+    expect(inboxKind.schema.parse({ conversation: 'ops' })).toEqual({ conversation: 'ops' })
+    expect(inboxConfigSchema.safeParse({ conversation: 'Ops' }).success).toBe(false)
+    expect(inboxConfigSchema.safeParse({ conversation: 'cli', extra: true }).success).toBe(false)
+    expect(inboxPolicySchema.parse({})).toEqual({ allowed: [] })
+    expect(inboxPolicySchema.safeParse({ allowed: [{ id: 'cli-user', name: 'cli' }] }).success).toBe(true)
+    expect(inboxPolicySchema.safeParse({ allowed: [{ id: '' }] }).success).toBe(false)
+    expect(inboxKind.policy.schema).toBe(inboxPolicySchema)
+    expect(inboxKind.policy.fields[0]?.key).toBe('allowed')
+  })
+
+  it('registers on a context that rejects unknown fields', async () => {
+    const seen: string[] = []
+    const reports: string[] = []
+    let release: () => void = () => {}
+    const reported = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const host = {
+      sources: {
+        register: (kind: { kind: string }) => {
+          seen.push(kind.kind)
+          return () => {}
+        },
+      },
+      context() {
+        return {
+          ready: Promise.resolve(),
+          configured: () => false,
+          report(_entry: string, health: { code?: string }) {
+            if (health.code) reports.push(health.code)
+            release()
+          },
+        }
+      },
+    }
+    const ctx = new Proxy({
+      orchestrator: host,
+      effect(run: () => void) {
+        run()
+      },
+    }, {
+      get(target, prop, receiver) {
+        if (prop in target) return Reflect.get(target, prop, receiver)
+        throw new Error(`cannot get property "${String(prop)}" without inject`)
+      },
+    })
+    apply(ctx as never)
+    await reported
+    expect(seen).toEqual(['inbox'])
+    expect(reports).toEqual(['setupPending'])
+  })
+
+  it('calls the disposer returned by register', async () => {
+    let disposed = 0
+    const disposers: Array<() => void | Promise<void>> = []
+    apply({
+      orchestrator: {
+        sources: {
+          register: () => () => {
+            disposed += 1
+          },
+        },
+      },
+      effect(run) {
+        const done = run()
+        if (typeof done === 'function') disposers.push(done)
+      },
+    })
+    for (const dispose of disposers.reverse()) await dispose()
+    expect(disposed).toBe(1)
   })
 })

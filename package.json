@@ -12,6 +12,7 @@
     "dispatch": "node packages/dispatcher/src/cli.ts dispatch",
     "listen": "node packages/dispatcher/src/cli.ts listen",
     "board": "node packages/dispatcher/src/cli.ts board",
+    "build:inbox": "tsc -p packages/inbox-source/tsconfig.json && node scripts/rewrite-inbox-dts.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
