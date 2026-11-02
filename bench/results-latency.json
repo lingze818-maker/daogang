@@ -15,7 +15,8 @@
       180100,
       180174
     ],
-    "note": "dispatch=CLI 进程内路由+落盘；accept_wait=从 dispatch 返回到 DSH flow.accepted 增量（含桥轮询 1s 粒度+评估）。worker 开工到 PR 的时长见 DSH 工单。"
+    "note": "dispatch=CLI 进程内路由+落盘；accept_wait=从 dispatch 返回到 DSH flow.accepted 增量（含桥轮询 1s 粒度+评估）。worker 开工到 PR 的时长见 DSH 工单。",
+    "e2e_note": "事后取证（PR created - dispatch receipt）：任务1 端到端 190s（评估冷启动 ~3min：服务重启后首个评估 tick 慢），任务2 端到端 68s（热态：评估秒级，worker 干活 ~1min）。waitAccepted 已放宽 300s+超时终检。"
   },
   "results": [
     {

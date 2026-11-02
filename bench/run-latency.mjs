@@ -27,14 +27,18 @@ async function dispatchLine(text) {
   return { text, dispatchMs: t1 - t0, output: JSON.parse(out.slice(out.indexOf('{'))) }
 }
 
-async function waitAccepted(beforeAccepted, timeoutMs = 180000) {
+async function waitAccepted(beforeAccepted, timeoutMs = 300000) {
   const t0 = Date.now()
   for (;;) {
     const ov = await overview()
     if ((ov.flow?.accepted ?? 0) > beforeAccepted) {
       return { acceptedAt: Date.now(), waitedMs: Date.now() - t0, ov }
     }
-    if (Date.now() - t0 > timeoutMs) return { acceptedAt: null, waitedMs: Date.now() - t0, ov }
+    if (Date.now() - t0 > timeoutMs) {
+      // 终检：评估冷启动（服务重启后首个 tick）可能拖 ~3min，超时不等于没接受
+      const final = await overview()
+      return { acceptedAt: (final.flow?.accepted ?? 0) > beforeAccepted ? Date.now() : null, waitedMs: Date.now() - t0, ov: final, timedOut: true }
+    }
     await new Promise(r => setTimeout(r, 2000))
   }
 }
