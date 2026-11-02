@@ -85,7 +85,8 @@ function firstHit(text: string, patterns: RegExp[]): Hit | null {
   return best
 }
 
-function urgencyOf(text: string): Urgency {
+/** 显式节奏词裁决（D2 数据：规则 1.00 > Flash 0.87）。无词时返回 1。 */
+export function urgencyOf(text: string): Urgency {
   if (firstHit(text, URGENT)) return 2
   if (firstHit(text, LATER)) return 0
   return 1
