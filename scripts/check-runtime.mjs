@@ -14,16 +14,27 @@
  *   不读 API key，不调用 gh。configured() 为 true 之后，应调用 effects.start()，
  *   并用 stub 挡住的 sessions.ensure 记下一次主会话（role orchestrator）。
  *   不提供 sessionController，不调用 AgentDelivery.send，不监听端口。
+ * - 上述 configured 成功并且 effects.start 之后，再试公开的 sessionController / Session。
+ *   原来的 Sessions.ensure 会在 resolveAgent 前失败，因为上下文里没有 sessionController。
+ *   另开 Cordis Context，只挂克隆里能解析的公开插件。SessionController 因 inject 停在未激活时，
+ *   JSON 写 blockedAt、condition、missingHooks，这是文档化硬挡，退出码仍是 0。
+ *   同一 masterId、state 目录和公开 ROUTER_PRESET 上，SessionStore.create 得到 Session。
+ *   不调用 prompt / rename / llm，不调用 gh，不 listen。
+ *   若 SessionController 真的激活，则改走它的 create，并断言句柄。
  * - 用公开的 Store 写下最小票、pending Assignment 和已存在的 workspace，
  *   再调用 Effects.start()。handler 进入私有 launch() 后，stub sessions.prompt
  *   记下首条消息。断言正文仍含 [daogang-cards]。不 import Engine，不调用模型。
  *
  * 没设根目录时只说明跳过，退出 0。pnpm test 不跑这一段。
- * 打印的结果不含绝对路径。当前 Node 解析不了 await using 时，Runtime 与 configured
- * 两段失败并退出非 0；launch 一段仍会尝试（它不加载 delivery.ts）。
+ * 打印的结果不含绝对路径。当前 Node 解析不了 await using 时，Runtime、configured
+ * 与 session 三段失败并退出非 0；launch 一段仍会尝试（它不加载 delivery.ts）。
  * configured() 没到 true 时，JSON 的 configured.blockedAt / condition 写出函数和条件，退出非 0。
+ * session 段的退出码：文档化硬挡（blockedAt / condition / missingHooks，且 SessionStore
+ * 得到可识别的 Session）是 0；SessionController 激活后 create 得到句柄也是 0。两种都要求
+ * 没有模型请求、没有 gh、没有 listen。意外抛错是非 0。
  */
 import { execFileSync, spawnSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -47,6 +58,7 @@ const report = {
   runtime: { loaded: false, constructed: false },
   configured: { passed: false },
   launch: { checked: false },
+  session: { passed: false },
 }
 
 const AWAIT_USING = '当前 Node 解析不了 await using，没有 import Runtime。上游 delivery.ts 使用这条语法。Node 24 可以解析；Node 22.23 的 ESM 解析器即使加上 --js-explicit-resource-management 也会 SyntaxError。'
@@ -64,6 +76,7 @@ if (!root) {
   report.runtime = { loaded: false, constructed: false, reason: 'DAOGANG_DSH_ROOT unset' }
   report.configured = { passed: false, reason: 'DAOGANG_DSH_ROOT unset' }
   report.launch = { checked: false, reason: 'DAOGANG_DSH_ROOT unset' }
+  report.session = { passed: false, reason: 'DAOGANG_DSH_ROOT unset' }
   console.log(JSON.stringify(report, null, 2))
   process.exit(0)
 }
@@ -96,6 +109,7 @@ try {
       reason: AWAIT_USING,
     }
     report.configured = { passed: false, reason: AWAIT_USING }
+    report.session = { passed: false, reason: AWAIT_USING }
   }
 } catch (error) {
   report.runtime = {
@@ -105,6 +119,7 @@ try {
     failed: brief(error),
   }
   report.configured = { passed: false, failed: brief(error) }
+  report.session = { passed: false, failed: brief(error) }
 }
 
 if (report.awaitUsing) {
@@ -122,6 +137,9 @@ if (report.awaitUsing) {
     report.configured = await probeConfigured()
   } catch (error) {
     report.configured = { ...report.configured, passed: false, failed: brief(error) }
+    if (report.session.passed !== true && !report.session.reason && !report.session.failed && !report.session.outcome) {
+      report.session = { passed: false, failed: brief(error) }
+    }
   }
 }
 
@@ -134,7 +152,8 @@ try {
 console.log(JSON.stringify(report, null, 2))
 const runtimeOk = report.runtime.constructed === true && report.runtime.configured === false && report.runtime.effectsStarted === false
 const configuredOk = report.configured.passed === true && report.configured.configured === true && report.configured.effectsStarted === true && report.configured.masterEnsure === true && report.configured.agentDeliverySend === false
-process.exit(runtimeOk && configuredOk && report.launch.checked === true ? 0 : 1)
+const sessionOk = report.session.passed === true && report.session.modelCalled === false && report.session.ghInvoked === false && report.session.listened === false && report.session.fetchCalled === false
+process.exit(runtimeOk && configuredOk && report.launch.checked === true && sessionOk ? 0 : 1)
 
 async function probeRuntime() {
   const runtimeMod = await load('src/app/runtime.ts')
@@ -363,6 +382,7 @@ async function probeConfigured() {
         webServer: 'loopback-stub',
         listened: false,
       }
+      report.session = { passed: false, reason: 'configured() is false' }
     } else {
       const ensured = ensures[0]
       if (effectsStarted !== 1) throw new Error(`effects.start() count is ${effectsStarted}, expected 1`)
@@ -385,6 +405,21 @@ async function probeConfigured() {
         ['git', 'config', '-z', '--show-origin', '--get-all', 'credential.https://github.com.helper'],
       ]
       if (JSON.stringify(calls) !== JSON.stringify(expectedCalls)) throw new Error('subprocess fixture saw unexpected argv')
+      try {
+        report.session = await probeMasterSession({
+          runtime,
+          directory,
+          commit,
+          routerPreset: sessionsMod.ROUTER_PRESET,
+          origEnsure,
+          calls,
+          sendCount: () => sends,
+          listened: () => listened,
+          effectsStarted,
+        })
+      } catch (error) {
+        report.session = { passed: false, failed: brief(error), modelCalled: false, ghInvoked: false, listened: false, fetchCalled: false }
+      }
       outcome = {
         passed: true,
         commit,
@@ -430,6 +465,274 @@ async function probeConfigured() {
   if (stopError) throw stopError
   if (outcome instanceof Error) throw outcome
   return outcome
+}
+
+function packageResolves(name) {
+  try {
+    createRequire(join(root, 'package.json')).resolve(`${name}/package.json`)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function hookNote(service, resolvable) {
+  if (service === 'llm' && resolvable) return '包能解析。本探测不 compose LlmRuntime，避免进入模型栈。它不是 Session 工厂'
+  if (service === 'attachments' && resolvable) return '包能解析，导出的 AttachmentStore 是抽象服务，克隆里没有可激活的具体后端'
+  if (service === 'workspaceRegistry' && resolvable) return 'WorkspaceRegistry 已挂上但未激活，还缺 storageDomain 和具体的 sessionPersistence'
+  if (service === 'sessionPersistence' && resolvable) return '包能解析，但是抽象服务；jsonl 后端不在这次 pnpm install 里'
+  if (!resolvable) return '克隆 pnpm install 之后这个包解析不到'
+  return '服务没有出现在上下文里'
+}
+
+function pluginState(fiber) {
+  if (fiber?.state === 2) return 'active'
+  if (fiber?.state === 3) return 'error'
+  if (fiber?.state === 4) return 'disposed'
+  return 'inactive'
+}
+
+async function probeMasterSession({ runtime, directory, commit, routerPreset, origEnsure, calls, sendCount, listened, effectsStarted }) {
+  const HOOK_PACKAGES = {
+    agentDefaultModel: '@deepseek-ai/dsh-agent-default-model',
+    agents: '@deepseek-ai/dsh-agent',
+    attachments: '@deepseek-ai/dsh-attachment',
+    fileUploads: '@deepseek-ai/dsh-client-file-upload',
+    fs: '@deepseek-ai/dsh-fs',
+    llm: '@deepseek-ai/dsh-llm',
+    sessions: '@deepseek-ai/dsh-session',
+    sessionProjections: '@deepseek-ai/dsh-session-projection',
+    sessionQuery: '@deepseek-ai/dsh-session-query',
+    typert: '@deepseek-ai/dsh-typert-protocol',
+    workspaceRegistry: '@deepseek-ai/dsh-workspace',
+    storageDomain: '@deepseek-ai/dsh-storage-domain',
+    sessionPersistence: '@deepseek-ai/dsh-session-persistence',
+    sessionPersistenceJsonl: '@deepseek-ai/dsh-session-persistence-jsonl',
+  }
+  if (typeof routerPreset !== 'string' || routerPreset.length === 0) throw new Error('ROUTER_PRESET is not exported')
+  if (effectsStarted !== 1) throw new Error('session probe ran before effects.start()')
+  const callsBefore = calls.length
+  const sendsBefore = sendCount()
+  const origFetch = globalThis.fetch
+  let fetches = 0
+  globalThis.fetch = () => {
+    fetches += 1
+    throw new Error('fetch during session probe')
+  }
+  const fibers = []
+  const pkg = (name) => import(pathToFileURL(join(root, 'node_modules', name, 'lib/index.js')).href)
+  try {
+    let ensureThrown = ''
+    let ensured
+    try {
+      ensured = await origEnsure.call(runtime.sessions, runtime.masterId, directory, 'dsh-superagent orchestrator', 'orchestrator')
+    } catch (error) {
+      ensureThrown = brief(error)
+    }
+    if (ensured) {
+      const id = String(ensured.id ?? ensured.session?.id ?? '')
+      if (id !== runtime.masterId) throw new Error('original Sessions.ensure returned a different id')
+      if (fetches !== 0 || sendCount() !== sendsBefore) throw new Error('original Sessions.ensure called the model stack')
+      return {
+        passed: true,
+        outcome: 'sessions-ensure',
+        commit,
+        blockedAt: null,
+        condition: null,
+        missingHooks: [],
+        ensure: { calledOriginal: true, reached: true, role: 'orchestrator', title: 'dsh-superagent orchestrator' },
+        sessionController: { activated: true },
+        constructed: {
+          reached: true,
+          via: 'Sessions.ensure',
+          ctor: ensured.constructor?.name ?? 'Agent',
+          idMatchesMaster: true,
+          idPrefix: 'orchestrator-',
+          role: 'orchestrator',
+          agentPreset: routerPreset,
+          title: 'dsh-superagent orchestrator',
+          cwdIsStateDir: true,
+        },
+        modelCalled: false,
+        ghInvoked: false,
+        agentDeliverySend: false,
+        fetchCalled: false,
+        webServer: 'loopback-stub',
+        listened: listened(),
+      }
+    }
+    if (!/sessionController|resolveAgent|without inject/.test(ensureThrown)) {
+      throw new Error(`original Sessions.ensure failed outside sessionController: ${ensureThrown}`)
+    }
+
+    const sessionPkg = await pkg('@deepseek-ai/dsh-session')
+    const controllerPkg = await pkg('@deepseek-ai/dsh-api-session-controller')
+    const agentPkg = await pkg('@deepseek-ai/dsh-agent')
+    const workspacePkg = await pkg('@deepseek-ai/dsh-workspace')
+    const cordis = await load('node_modules/@deepseek-ai/cordis/lib/index.js')
+    const SessionStore = sessionPkg.SessionStore ?? sessionPkg.default
+    const SessionController = controllerPkg.SessionController ?? controllerPkg.default
+    const AgentRegistry = agentPkg.AgentRegistry
+    const WorkspaceRegistry = workspacePkg.WorkspaceRegistry ?? workspacePkg.default
+    if (typeof SessionStore !== 'function' || typeof SessionController !== 'function') {
+      throw new Error('public SessionStore or SessionController export is missing')
+    }
+    if (!Array.isArray(SessionController.inject) || SessionController.inject.length === 0) {
+      throw new Error('SessionController.inject is not the public service list')
+    }
+
+    const side = new cordis.Context()
+    const mount = async (plugin, config) => {
+      const fiber = await side.plugin(plugin, config)
+      fibers.push(fiber)
+      return fiber
+    }
+    const sessionsFiber = await mount(SessionStore)
+    const agentsFiber = await mount(AgentRegistry)
+    const workspaceFiber = await mount(WorkspaceRegistry)
+    const controllerFiber = await mount(SessionController, { listWorkSliceMs: 16 })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    if (pluginState(controllerFiber) === 'error') throw new Error('SessionController plugin entered the error state')
+    const controller = side.get('sessionController')
+    const activated = pluginState(controllerFiber) === 'active' && controller && typeof controller.create === 'function'
+    const activatedServices = [
+      pluginState(sessionsFiber) === 'active' && side.get('sessions') ? 'sessions' : null,
+      pluginState(agentsFiber) === 'active' && side.get('agents') ? 'agents' : null,
+    ].filter(Boolean)
+    const inactivePlugins = [
+      pluginState(workspaceFiber) !== 'active' ? 'workspaceRegistry' : null,
+      !activated ? 'sessionController' : null,
+    ].filter(Boolean)
+
+    const missingHooks = []
+    for (const service of SessionController.inject) {
+      if (side.get(service) !== undefined) continue
+      const packageName = HOOK_PACKAGES[service] ?? ''
+      const resolvable = packageName ? packageResolves(packageName) : false
+      const hook = { service, package: packageName || null, resolvable, note: hookNote(service, resolvable) }
+      if (service === 'workspaceRegistry') {
+        const persistence = HOOK_PACKAGES.sessionPersistence
+        const jsonl = HOOK_PACKAGES.sessionPersistenceJsonl
+        hook.missing = [
+          { service: 'storageDomain', package: HOOK_PACKAGES.storageDomain, resolvable: packageResolves(HOOK_PACKAGES.storageDomain), note: hookNote('storageDomain', packageResolves(HOOK_PACKAGES.storageDomain)) },
+          { service: 'sessionPersistence', package: persistence, resolvable: packageResolves(persistence), note: hookNote('sessionPersistence', packageResolves(persistence)), jsonlResolvable: packageResolves(jsonl) },
+        ]
+      }
+      missingHooks.push(hook)
+    }
+
+    const ghInvoked = calls.slice(callsBefore).some((argv) => argv[0] === 'gh' || argv[0] === 'lark-cli')
+    if (ghInvoked) throw new Error('session probe invoked gh or lark-cli')
+    if (calls.length !== callsBefore) throw new Error('session probe invoked the subprocess fixture')
+    if (sendCount() !== sendsBefore) throw new Error('AgentDelivery.send ran during the session probe')
+    if (listened()) throw new Error('webServer.listen ran during the session probe')
+    if (fetches !== 0) throw new Error('fetch ran during the session probe')
+
+    if (activated) {
+      const created = await controller.create({
+        sessionId: sessionPkg.SessionId(runtime.masterId),
+        cwd: directory,
+        agentPreset: routerPreset,
+      })
+      if (fetches !== 0) throw new Error('sessionController.create called fetch')
+      if (calls.length !== callsBefore || calls.slice(callsBefore).some((argv) => argv[0] === 'gh' || argv[0] === 'lark-cli')) {
+        throw new Error('sessionController.create invoked gh or the subprocess fixture')
+      }
+      if (sendCount() !== sendsBefore) throw new Error('AgentDelivery.send ran during sessionController.create')
+      if (listened()) throw new Error('webServer.listen ran during sessionController.create')
+      if (created?.sessionId !== runtime.masterId) throw new Error('sessionController.create did not return the master id')
+      return {
+        passed: true,
+        outcome: 'session-controller',
+        commit,
+        blockedAt: null,
+        condition: null,
+        missingHooks,
+        ensure: { calledOriginal: true, reached: false, blockedAt: 'Sessions.ensure', condition: 'runtime context has no sessionController', thrown: ensureThrown },
+        sessionController: { activated: true, via: 'sessionController.create' },
+        constructed: {
+          reached: true,
+          via: 'sessionController.create',
+          idMatchesMaster: true,
+          idPrefix: 'orchestrator-',
+          role: 'orchestrator',
+          agentPreset: created.agentPreset ?? routerPreset,
+          title: null,
+          titleHook: 'sessionController.rename',
+          cwdIsStateDir: true,
+        },
+        activatedServices,
+        inactivePlugins,
+        modelCalled: false,
+        ghInvoked: false,
+        agentDeliverySend: false,
+        fetchCalled: false,
+        promptCalled: false,
+        webServer: 'loopback-stub',
+        listened: false,
+      }
+    }
+
+    if (missingHooks.length === 0) throw new Error('SessionController stayed inactive without a missing hook')
+    if (pluginState(sessionsFiber) !== 'active' || typeof side.get('sessions')?.create !== 'function') {
+      throw new Error('public SessionStore did not activate')
+    }
+    const sessionId = sessionPkg.SessionId(runtime.masterId)
+    const session = side.get('sessions').create(sessionId, { meta: { cwd: directory, agentPreset: routerPreset } })
+    const header = session?.header ?? {}
+    if (session?.constructor?.name !== 'Session') throw new Error('SessionStore.create did not return a Session')
+    if (String(session.id) !== runtime.masterId || !String(session.id).startsWith('orchestrator-')) {
+      throw new Error('Session id is not the master session id')
+    }
+    if (header.agentPreset !== routerPreset) throw new Error('Session header agentPreset is not ROUTER_PRESET')
+    if (header.cwd !== directory) throw new Error('Session header cwd is not the state directory')
+    if (side.get('sessions').get(sessionId) !== session) throw new Error('SessionStore.get did not return the created Session')
+    if ('title' in header) throw new Error('Session header grew a title field; the probe should record it instead of assuming null')
+    if (fetches !== 0) throw new Error('SessionStore.create called fetch')
+    return {
+      passed: true,
+      outcome: 'documented-block',
+      commit,
+      blockedAt: 'SessionController',
+      condition: 'ctx.plugin(SessionController) 的 fiber 停在未激活，上下文里没有 sessionController',
+      missingHooks,
+      ensure: {
+        calledOriginal: true,
+        reached: false,
+        blockedAt: 'Sessions.ensure',
+        condition: 'runtime 上下文没有 sessionController，resolveAgent 没有被调用',
+        thrown: ensureThrown,
+      },
+      sessionController: { activated: false, pluginState: pluginState(controllerFiber) },
+      constructed: {
+        reached: true,
+        via: 'SessionStore.create',
+        ctor: 'Session',
+        idMatchesMaster: true,
+        idPrefix: 'orchestrator-',
+        role: 'orchestrator',
+        agentPreset: header.agentPreset,
+        title: null,
+        titleHook: 'sessionController.rename',
+        cwdIsStateDir: true,
+        inSessionStore: true,
+      },
+      activatedServices,
+      inactivePlugins,
+      modelCalled: false,
+      ghInvoked: false,
+      agentDeliverySend: false,
+      fetchCalled: false,
+      promptCalled: false,
+      webServer: 'loopback-stub',
+      listened: false,
+    }
+  } finally {
+    globalThis.fetch = origFetch
+    for (const fiber of fibers.reverse()) {
+      try { await Promise.resolve(fiber.dispose()) } catch { /* 旁路插件卸掉失败不影响上面的断言。 */ }
+    }
+  }
 }
 
 async function probeLaunch() {
