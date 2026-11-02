@@ -1,24 +1,30 @@
 #!/usr/bin/env node
 /**
- * 无密钥检查两件事：
+ * 无密钥检查三件事：
  *
  *   node scripts/check-runtime.mjs
  *   DAOGANG_DSH_ROOT=/path/to/dsh-superagent-prototype node scripts/check-runtime.mjs
  *
  * 设了根目录、且该克隆已经 pnpm install 时：
- * - 动态加载克隆里的 Runtime。能解析 `await using` 的 Node（本轮是 24）会构造它。
+ * - 动态加载克隆里的 Runtime。能解析 `await using` 的 Node（24+）会构造它。
  *   空 GitHub 配置下应停在 setupPending，并且不调用 effects.start() / sessions.ensure。
  *   webServer 只是 host 为 127.0.0.1 的登记桩，不监听端口。
+ * - 同一套 Runtime，在临时库写入 repository `probe/probe` 和一个不会被执行的 probe-cli。
+ *   subprocess.spawn 是夹具，只回答 api user、repos/probe/probe 和 git credential helper。
+ *   不读 API key，不调用 gh。configured() 为 true 之后，应调用 effects.start()，
+ *   并用 stub 挡住的 sessions.ensure 记下一次主会话（role orchestrator）。
+ *   不提供 sessionController，不调用 AgentDelivery.send，不监听端口。
  * - 用公开的 Store 写下最小票、pending Assignment 和已存在的 workspace，
  *   再调用 Effects.start()。handler 进入私有 launch() 后，stub sessions.prompt
  *   记下首条消息。断言正文仍含 [daogang-cards]。不 import Engine，不调用模型。
  *
  * 没设根目录时只说明跳过，退出 0。pnpm test 不跑这一段。
- * 打印的结果不含绝对路径。当前 Node 解析不了 await using 时，Runtime 一段失败并退出非 0；
- * launch 一段仍会尝试（它不加载 delivery.ts）。
+ * 打印的结果不含绝对路径。当前 Node 解析不了 await using 时，Runtime 与 configured
+ * 两段失败并退出非 0；launch 一段仍会尝试（它不加载 delivery.ts）。
+ * configured() 没到 true 时，JSON 的 configured.blockedAt / condition 写出函数和条件，退出非 0。
  */
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -39,8 +45,11 @@ function parsesAwaitUsing() {
 const report = {
   node: process.version,
   runtime: { loaded: false, constructed: false },
+  configured: { passed: false },
   launch: { checked: false },
 }
+
+const AWAIT_USING = '当前 Node 解析不了 await using，没有 import Runtime。上游 delivery.ts 使用这条语法。Node 24 可以解析；Node 22.23 的 ESM 解析器即使加上 --js-explicit-resource-management 也会 SyntaxError。'
 
 const root = process.env.DAOGANG_DSH_ROOT
 if (root && !process.execArgv.includes('--experimental-transform-types')) {
@@ -53,6 +62,7 @@ if (root && !process.execArgv.includes('--experimental-transform-types')) {
 
 if (!root) {
   report.runtime = { loaded: false, constructed: false, reason: 'DAOGANG_DSH_ROOT unset' }
+  report.configured = { passed: false, reason: 'DAOGANG_DSH_ROOT unset' }
   report.launch = { checked: false, reason: 'DAOGANG_DSH_ROOT unset' }
   console.log(JSON.stringify(report, null, 2))
   process.exit(0)
@@ -83,10 +93,9 @@ try {
       constructed: false,
       effectsStarted: false,
       sessionsEnsure: false,
-      reason: '当前 Node 解析不了 await using，没有 import Runtime。上游 delivery.ts 使用这条语法。Node 24 可以解析；Node 22.23 的 ESM 解析器即使加上 --js-explicit-resource-management 也会 SyntaxError。',
+      reason: AWAIT_USING,
     }
-  } else {
-    report.runtime = await probeRuntime()
+    report.configured = { passed: false, reason: AWAIT_USING }
   }
 } catch (error) {
   report.runtime = {
@@ -94,6 +103,25 @@ try {
     loaded: report.runtime.loaded === true,
     constructed: false,
     failed: brief(error),
+  }
+  report.configured = { passed: false, failed: brief(error) }
+}
+
+if (report.awaitUsing) {
+  try {
+    report.runtime = await probeRuntime()
+  } catch (error) {
+    report.runtime = {
+      ...report.runtime,
+      loaded: report.runtime.loaded === true,
+      constructed: false,
+      failed: brief(error),
+    }
+  }
+  try {
+    report.configured = await probeConfigured()
+  } catch (error) {
+    report.configured = { ...report.configured, passed: false, failed: brief(error) }
   }
 }
 
@@ -104,7 +132,9 @@ try {
 }
 
 console.log(JSON.stringify(report, null, 2))
-process.exit(report.runtime.constructed === true && report.runtime.effectsStarted === false && report.launch.checked === true ? 0 : 1)
+const runtimeOk = report.runtime.constructed === true && report.runtime.configured === false && report.runtime.effectsStarted === false
+const configuredOk = report.configured.passed === true && report.configured.configured === true && report.configured.effectsStarted === true && report.configured.masterEnsure === true && report.configured.agentDeliverySend === false
+process.exit(runtimeOk && configuredOk && report.launch.checked === true ? 0 : 1)
 
 async function probeRuntime() {
   const runtimeMod = await load('src/app/runtime.ts')
@@ -179,6 +209,227 @@ async function probeRuntime() {
   }
   if (stopError) throw stopError
   return observed
+}
+
+const SETUP_BLOCKS = {
+  repositoryUnset: ['resolveDeployment', 'if (!remote) throw new SetupError(\'repositoryUnset\')'],
+  agentCliUnset: ['resolveDeployment', 'if (!accounts.cli) throw new SetupError(\'agentCliUnset\')'],
+  agentCliMissing: ['resolveDeployment', 'executable() threw SetupError(\'agentCliMissing\')'],
+  agentCliSignedOut: ['resolveDeployment', 'probe([cli, \'api\', \'user\']) threw SetupError(\'agentCliSignedOut\')'],
+  agentCliNoAccount: ['resolveDeployment', 'parsed(GithubUser, text) failed'],
+  repositoryUnreadable: ['resolveDeployment', 'probe(repos/<repository>) threw SetupError(\'repositoryUnreadable\')'],
+  repositoryUnreported: ['resolveDeployment', 'parsed(RepositoryAccess, text) failed'],
+  repositoryReadOnly: ['resolveDeployment', 'access.push !== true'],
+  foreignFile: ['writeEnvironment', 'a file in worker-bin or worker-gitconfig was not written by dsh-superagent'],
+  gitTooOld: ['verifyEnvironment', 'git credential helper stdout !== file:<worker-gitconfig> + credentialHelper(cli)'],
+  environmentFailed: ['Setup.resolve', 'writeEnvironment or verifyEnvironment threw SetupError(\'environmentFailed\')'],
+  feishuCliFailed: ['resolveFeishuBot', 'the feishu cli probe failed; this fixture leaves feishu cli empty so this branch should not run'],
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll('\'', '\'\\\'\'')}'`
+}
+
+function snapshotEnv() {
+  return { ...process.env }
+}
+
+function restoreEnv(saved) {
+  for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key]
+  for (const [key, value] of Object.entries(saved)) process.env[key] = value
+}
+
+async function probeConfigured() {
+  const runtimeMod = await load('src/app/runtime.ts')
+  const storeMod = await load('src/app/store.ts')
+  const effectsMod = await load('src/app/effects.ts')
+  const sessionsMod = await load('src/app/sessions.ts')
+  const deliveryMod = await load('src/app/delivery.ts')
+  const envMod = await load('src/infra/environment.ts')
+  const cordis = await load('node_modules/@deepseek-ai/cordis/lib/index.js')
+  const patch = readFileSync(new URL('../packages/inbox-source/cordis.patch.yml', import.meta.url), 'utf8')
+  if (!patch.includes('disabled: true')) throw new Error('cordis.patch.yml no longer keeps disabled: true')
+  if (typeof runtimeMod.Runtime !== 'function') throw new Error('Runtime 没有导出')
+
+  const directory = mkdtempSync(join(tmpdir(), 'daogang-configured-'))
+  const cli = join(directory, 'probe-cli')
+  const marker = join(directory, 'probe-cli-executed')
+  const repository = 'probe/probe'
+  const login = 'probe'
+  writeFileSync(cli, `#!/bin/sh\nprintf '%s\\n' executed > ${shellQuote(marker)}\nexit 97\n`, { mode: 0o755 })
+  chmodSync(cli, 0o755)
+  let seeded
+  try {
+    seeded = new storeMod.Store(join(directory, 'orchestrator.sqlite'))
+    seeded.saveSettings({
+      sources: { github: { enabled: true, config: { repository, cli } } },
+    })
+  } finally {
+    try { seeded?.close() } catch { /* 种子库关掉后再让 Runtime 拿目录锁。 */ }
+  }
+
+  const calls = []
+  const userArgv = `${cli} api user`
+  const repoArgv = `${cli} api repos/${repository} --jq {name: .full_name, push: .permissions.push}`
+  const gitArgv = 'git config -z --show-origin --get-all credential.https://github.com.helper'
+  const gitStdout = `file:${envMod.workerGitConfig(directory)}\0${envMod.credentialHelper(cli)}\0`
+  const subprocess = {
+    spawn(spec) {
+      const rest = [...spec.argv]
+      while (rest[0] === 'env' || /^[A-Z_]+=/.test(rest[0] ?? '')) rest.shift()
+      const key = rest.join(' ')
+      calls.push(rest.map((part, index) => (index === 0 ? String(part).split('/').at(-1) : part)))
+      const answer = key === userArgv ? '{"login":"probe","id":1}\n'
+        : key === repoArgv ? '{"name":"probe/probe","push":true}\n'
+          : key === gitArgv ? gitStdout : undefined
+      const reader = (text) => ({ readFrom: () => ({ text }) })
+      return {
+        done: Promise.resolve({ exitCode: answer === undefined ? 1 : 0, signal: null }),
+        collected: {
+          stdout: reader(answer ?? ''),
+          stderr: reader(answer === undefined ? 'fixture refuses' : ''),
+        },
+      }
+    },
+  }
+
+  let effectsStarted = 0
+  let sends = 0
+  const ensures = []
+  const origStart = effectsMod.Effects.prototype.start
+  const origEnsure = sessionsMod.Sessions.prototype.ensure
+  const origPrompt = sessionsMod.Sessions.prototype.prompt
+  const origSend = deliveryMod.AgentDelivery.prototype.send
+  effectsMod.Effects.prototype.start = function started(...args) {
+    effectsStarted += 1
+    return origStart.apply(this, args)
+  }
+  sessionsMod.Sessions.prototype.ensure = async function ensured(id, cwd, title, role) {
+    ensures.push({ id, title, role, cwdIsState: cwd === directory })
+    return { id, inbox: { remove() {} } }
+  }
+  sessionsMod.Sessions.prototype.prompt = async function prompted() {
+    throw new Error('sessions.prompt was called on the configured Runtime')
+  }
+  deliveryMod.AgentDelivery.prototype.send = function sent() {
+    sends += 1
+    throw new Error('AgentDelivery.send was called')
+  }
+
+  let runtime
+  let stopError
+  let outcome
+  let listened = false
+  const envBefore = snapshotEnv()
+  try {
+    const ctx = new cordis.Context()
+    ctx.provide('webServer', {
+      host: '127.0.0.1',
+      port: 9,
+      register() { return () => {} },
+      listen() { listened = true; throw new Error('webServer.listen was called') },
+    })
+    ctx.provide('agents', { get() { return undefined } })
+    ctx.provide('sessionPersistence', { async flush() {} })
+    ctx.provide('subprocess', subprocess)
+    runtime = new runtimeMod.Runtime(ctx, {
+      stateDir: directory,
+      promptMaxChars: { get: () => 100_000 },
+      admissionContextMaxPages: { get: () => 10 },
+      admissionContextTimeoutMs: { get: () => 15_000 },
+    }, () => {})
+    await runtime.ready
+    await runtime.effects.idle()
+    if (existsSync(marker)) throw new Error('probe-cli was executed')
+    if (listened) throw new Error('webServer.listen was called')
+    const ghInvoked = calls.some((argv) => argv[0] === 'gh' || argv[0] === 'lark-cli')
+    if (ghInvoked) throw new Error('fixture subprocess invoked gh or lark-cli')
+    const entry = runtime.health?.runtime
+    if (runtime.configured() !== true) {
+      const code = runtime.setupProblem?.code ?? 'missing'
+      const [blockedAt, condition] = SETUP_BLOCKS[code] ?? ['Setup.run', `setupProblem.code is ${code}`]
+      outcome = {
+        passed: false,
+        commit,
+        configured: false,
+        blockedAt,
+        condition,
+        setupProblem: code,
+        effectsStartCount: effectsStarted,
+        ensureCount: ensures.length,
+        ghInvoked: false,
+        fixtureCliExecuted: false,
+        commands: calls,
+        webServer: 'loopback-stub',
+        listened: false,
+      }
+    } else {
+      const ensured = ensures[0]
+      if (effectsStarted !== 1) throw new Error(`effects.start() count is ${effectsStarted}, expected 1`)
+      if (ensures.length !== 1 || ensured.role !== 'orchestrator' || ensured.title !== 'dsh-superagent orchestrator') {
+        throw new Error('sessions.ensure did not open the orchestrator session once')
+      }
+      if (ensured.id !== runtime.masterId || !String(ensured.id).startsWith('orchestrator-') || ensured.cwdIsState !== true) {
+        throw new Error('sessions.ensure did not receive the master session id and state directory')
+      }
+      if (sends !== 0) throw new Error('AgentDelivery.send ran')
+      if (entry?.state !== 'ready') throw new Error(`runtime health is ${entry?.state ?? 'empty'}, expected ready`)
+      if (runtime.setupProblem) throw new Error(`setup problem remained: ${runtime.setupProblem.code}`)
+      if (runtime.deployment.repository !== repository || runtime.deployment.github.login !== login) {
+        throw new Error('resolved deployment is not the probe repository')
+      }
+      if (runtime.deployment.feishu) throw new Error('resolveFeishuBot returned a bot')
+      const expectedCalls = [
+        ['probe-cli', 'api', 'user'],
+        ['probe-cli', 'api', 'repos/probe/probe', '--jq', '{name: .full_name, push: .permissions.push}'],
+        ['git', 'config', '-z', '--show-origin', '--get-all', 'credential.https://github.com.helper'],
+      ]
+      if (JSON.stringify(calls) !== JSON.stringify(expectedCalls)) throw new Error('subprocess fixture saw unexpected argv')
+      outcome = {
+        passed: true,
+        commit,
+        configured: true,
+        repository,
+        login,
+        via: 'settings.sources.github + fixture subprocess',
+        resolveDeployment: 'fixture-stdout',
+        resolveFeishuBot: 'cli-empty',
+        verifyEnvironment: 'fixture-stdout',
+        ghInvoked: false,
+        fixtureCliExecuted: false,
+        setupProblem: null,
+        healthState: 'ready',
+        effectsStarted: true,
+        effectsStartCount: effectsStarted,
+        masterEnsure: true,
+        ensureCount: ensures.length,
+        ensureRole: ensured.role,
+        ensureTitle: ensured.title,
+        idMatchesMaster: true,
+        cwdIsStateDir: true,
+        sessionControllerProvided: false,
+        agentDeliverySend: false,
+        modelCalled: false,
+        commands: calls,
+        webServer: 'loopback-stub',
+        listened: false,
+        patchDisabled: true,
+      }
+    }
+  } catch (error) {
+    outcome = error
+  } finally {
+    effectsMod.Effects.prototype.start = origStart
+    sessionsMod.Sessions.prototype.ensure = origEnsure
+    sessionsMod.Sessions.prototype.prompt = origPrompt
+    deliveryMod.AgentDelivery.prototype.send = origSend
+    try { await runtime?.stop() } catch (error) { stopError = error }
+    restoreEnv(envBefore)
+    rmSync(directory, { recursive: true, force: true })
+  }
+  if (stopError) throw stopError
+  if (outcome instanceof Error) throw outcome
+  return outcome
 }
 
 async function probeLaunch() {

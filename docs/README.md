@@ -1,6 +1,6 @@
 # 文档
 
-技术前提以结构笔记为准：TypeScript / pnpm / DeepSeek Harness（Cordis）；扩展走 Source 插件 + 外围分发器；每个 Ticket 一个 worker Session。当前发布是外围可用版 `0.1.0-peripheral`：CLI 能派单、打断和招领。执行口默认 Local；可选 `DAOGANG_DSH_ROOT` 的适配器仍把 enqueue 记在站位 effects 上。`scripts/check-effects.mjs` 能在已安装的上游克隆里看到 `effect` 表的行，以及卡片留在公开 prompt 文本里。`scripts/check-runtime.mjs` 在能解析 `await using` 的 Node 上构造空配置的 Runtime（停在 `setupPending`），并用 stub `sessions.prompt` 看到卡片。活 worker Session 和真实模型请求仍未验证。inbox Source 的挂载见 `packages/inbox-source/README.md`。
+技术前提以结构笔记为准：TypeScript / pnpm / DeepSeek Harness（Cordis）；扩展走 Source 插件 + 外围分发器；每个 Ticket 一个 worker Session。当前发布是外围可用版 `0.1.0-peripheral`：CLI 能派单、打断和招领。执行口默认 Local；可选 `DAOGANG_DSH_ROOT` 的适配器仍把 enqueue 记在站位 effects 上。`scripts/check-effects.mjs` 能在已安装的上游克隆里看到 `effect` 表的行，以及卡片留在公开 prompt 文本里。`scripts/check-runtime.mjs` 在能解析 `await using` 的 Node（24+）上构造空配置的 Runtime（停在 `setupPending`），用夹具让 `configured()` 为 true 后看到 `effects.start()` 和主会话 `ensure`，并用 stub `sessions.prompt` 看到卡片。活 worker Session、真实 `gh` 身份和真实模型请求仍未验证。inbox Source 的挂载见 `packages/inbox-source/README.md`。
 
 | 文档 | 内容 |
 | --- | --- |
