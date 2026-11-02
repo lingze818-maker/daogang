@@ -1,0 +1,100 @@
+{"id":"t001","group":"task","text":"帮我写一份用户手册","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t002","group":"task","text":"帮忙修一下登录页的样式错位","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t003","group":"task","text":"把配置文档补上，现在缺一节","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t004","group":"task","text":"马上帮我修这个崩溃，线上挂了","expect_target":"worker","expect_urgency":2,"got_target":"worker","got_urgency":2,"hitTarget":true,"hitUrgency":true}
+{"id":"t005","group":"task","text":"立刻排查一下支付回调没到账的问题","expect_target":"worker","expect_urgency":2,"got_target":"worker","got_urgency":2,"hitTarget":true,"hitUrgency":true}
+{"id":"t006","group":"task","text":"实现一个深色模式开关","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t007","group":"task","text":"不急，帮我写个部署文档","expect_target":"worker","expect_urgency":0,"got_target":"worker","got_urgency":0,"hitTarget":true,"hitUrgency":true}
+{"id":"t008","group":"task","text":"有空再把 README 里的示例更新一下","expect_target":"worker","expect_urgency":0,"got_target":"worker","got_urgency":0,"hitTarget":true,"hitUrgency":true}
+{"id":"t009","group":"task","text":"修复搜索结果分页重复的 bug","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t010","group":"task","text":"帮我排查一下为什么构建产物这么大","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t011","group":"task","text":"把上周的会议纪要写成 markdown 文档","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t012","group":"task","text":"紧急：把泄露的 API key 从历史提交里清掉","expect_target":"worker","expect_urgency":2,"got_target":"main","got_urgency":2,"hitTarget":false,"hitUrgency":true}
+{"id":"t013","group":"task","text":"现在就把首页的错别字改一下","expect_target":"worker","expect_urgency":2,"got_target":"worker","got_urgency":2,"hitTarget":true,"hitUrgency":true}
+{"id":"t014","group":"task","text":"帮我实现一个导出 CSV 的功能","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t015","group":"task","text":"稍后帮我看看测试为什么偶发失败","expect_target":"worker","expect_urgency":0,"got_target":"worker","got_urgency":0,"hitTarget":true,"hitUrgency":true}
+{"id":"t016","group":"task","text":"安装脚本在 macOS 上跑不通，修一下","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t017","group":"task","text":"帮我补上卸载说明","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t018","group":"task","text":"把错误提示文案统一成中文","expect_target":"worker","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"t019","group":"task","text":"fix the broken link in docs","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t020","group":"task","text":"implement rate limiting for the public API, urgent","expect_target":"worker","expect_urgency":2,"got_target":"worker","got_urgency":2,"hitTarget":true,"hitUrgency":true}
+{"id":"t021","group":"task","text":"帮我检查依赖里的安全漏洞并修复","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t022","group":"task","text":"尽快把版本号更新到 0.2","expect_target":"worker","expect_urgency":2,"got_target":"main","got_urgency":2,"hitTarget":false,"hitUrgency":true}
+{"id":"t023","group":"task","text":"下次有空帮我优化一下首屏加载","expect_target":"worker","expect_urgency":0,"got_target":"worker","got_urgency":0,"hitTarget":true,"hitUrgency":true}
+{"id":"t024","group":"task","text":"把这份调研写成技术方案文档","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t025","group":"task","text":"readme 里的快速开始跑不通，帮我修","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t026","group":"task","text":"帮忙把日志加上时间戳","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t027","group":"task","text":"实现一个简单的健康检查端点","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t028","group":"task","text":"帮我把这个报错截图里的堆栈排查一下","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t029","group":"task","text":"文档里的架构图过时了，更新一下","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t030","group":"task","text":"不着急，先把环境变量说明补上就行","expect_target":"worker","expect_urgency":0,"got_target":"worker","got_urgency":0,"hitTarget":true,"hitUrgency":true}
+{"id":"t031","group":"task","text":"帮我写个脚本批量重命名这些图片","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t032","group":"task","text":"立刻把防火墙规则改回来，端口暴露了","expect_target":"worker","expect_urgency":2,"got_target":"main","got_urgency":2,"hitTarget":false,"hitUrgency":true}
+{"id":"t033","group":"task","text":"修复移动端菜单点不开的问题","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t034","group":"task","text":"帮我把单元测试覆盖率提到 80%","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t035","group":"task","text":"补一个 docker-compose 的安装示例","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t036","group":"task","text":"帮我排查内存泄漏，服务两周必重启","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t037","group":"task","text":" ASAP：帮我把回滚脚本准备好","expect_target":"worker","expect_urgency":2,"got_target":"worker","got_urgency":2,"hitTarget":true,"hitUrgency":true}
+{"id":"t038","group":"task","text":"实现导出功能的时候记得写文档","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t039","group":"task","text":"帮我看一下这个 PR 的改动有没有问题","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t040","group":"task","text":"把过期的证书换成新的，尽快","expect_target":"worker","expect_urgency":2,"got_target":"main","got_urgency":2,"hitTarget":false,"hitUrgency":true}
+{"id":"t041","group":"task","text":"帮我加一个暗色主题","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t042","group":"task","text":"写成分节的形式，不要太长","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t043","group":"task","text":"帮我修一下 Windows 下的路径 bug","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t044","group":"task","text":"补上中文的翻译文件","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t045","group":"task","text":"帮我实现离线缓存","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t046","group":"task","text":"有空再帮我看看那个警告","expect_target":"worker","expect_urgency":0,"got_target":"worker","got_urgency":0,"hitTarget":true,"hitUrgency":true}
+{"id":"t047","group":"task","text":"马上帮我把热修复发出去","expect_target":"worker","expect_urgency":2,"got_target":"worker","got_urgency":2,"hitTarget":true,"hitUrgency":true}
+{"id":"t048","group":"task","text":"帮忙排查一下接口偶发 502","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"t049","group":"task","text":"把示例代码改成可运行的完整版","expect_target":"worker","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"t050","group":"task","text":"帮我做一份数据迁移方案并写成文档","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m001","group":"mixed","text":"早呀，顺便帮我修一下顶栏的对齐","expect_target":"mixed","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"m002","group":"mixed","text":"谢谢！另外把 README 的标题改个颜色","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m003","group":"mixed","text":"哈哈这个截图太逗了，对了帮我排查下为什么图标不显示","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m004","group":"mixed","text":"嗨，忙着呢？马上帮我看下报警是怎么回事","expect_target":"mixed","expect_urgency":2,"got_target":"worker","got_urgency":2,"hitTarget":false,"hitUrgency":true}
+{"id":"m005","group":"mixed","text":"晚安之前记得帮我把文档备份一下","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m006","group":"mixed","text":"你好呀，不急，有空帮我实现个书签功能","expect_target":"mixed","expect_urgency":0,"got_target":"mixed","got_urgency":0,"hitTarget":true,"hitUrgency":true}
+{"id":"m007","group":"mixed","text":"今天好累，不过还是得修一下这个 bug","expect_target":"mixed","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"m008","group":"mixed","text":"thanks a lot! also fix the typo on the landing page please","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m009","group":"mixed","text":"怎么样，恢复点精神没？对了帮我补上安装说明","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m010","group":"mixed","text":"早上好，麻烦把昨晚的构建日志排查一下","expect_target":"mixed","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"m011","group":"mixed","text":"谢谢啦，不着急，有空再帮我写个 changelog","expect_target":"mixed","expect_urgency":0,"got_target":"mixed","got_urgency":0,"hitTarget":true,"hitUrgency":true}
+{"id":"m012","group":"mixed","text":"在吗？紧急！把测试环境的数据库回滚","expect_target":"mixed","expect_urgency":2,"got_target":"main","got_urgency":2,"hitTarget":false,"hitUrgency":true}
+{"id":"m013","group":"mixed","text":"哈哈好，那帮我实现你说那个方案吧","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m014","group":"mixed","text":"hi! quick one: 帮我修一下页脚年份","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m015","group":"mixed","text":"晚安，明天记得帮我看下那个 issue","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m016","group":"mixed","text":"谢谢你昨天的帮忙，另外把示例补上几个","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m017","group":"mixed","text":"早安！马上帮我把发布检查清单过一遍","expect_target":"mixed","expect_urgency":2,"got_target":"mixed","got_urgency":2,"hitTarget":true,"hitUrgency":true}
+{"id":"m018","group":"mixed","text":"闲聊两句：周末去爬山了。对了我文档那块你写完了吗，没有的话帮我补上","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m019","group":"mixed","text":"hello again, could you implement the dark mode toggle when you have time","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m020","group":"mixed","text":"今天天气真好，不急，有空帮我排查下那个内存警告","expect_target":"mixed","expect_urgency":0,"got_target":"worker","got_urgency":0,"hitTarget":false,"hitUrgency":true}
+{"id":"m021","group":"mixed","text":"谢谢老师！顺便把注释里的错别字修一下","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m022","group":"mixed","text":"哈喽，马上帮我把这个热修分支合了","expect_target":"mixed","expect_urgency":2,"got_target":"worker","got_urgency":2,"hitTarget":false,"hitUrgency":true}
+{"id":"m023","group":"mixed","text":"早安，记得帮我把证书续期这事处理下","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m024","group":"mixed","text":"怎么样，吃了吗？帮我写个使用说明吧","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m025","group":"mixed","text":"谢谢，回头帮我把日志清理脚本修一下","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m026","group":"mixed","text":"在吗在吗，紧急，线上登录全挂了帮我排查","expect_target":"mixed","expect_urgency":2,"got_target":"mixed","got_urgency":2,"hitTarget":true,"hitUrgency":true}
+{"id":"m027","group":"mixed","text":"哈哈可以，那帮我补上卸载那一节文档","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"m028","group":"mixed","text":"hi, thanks! and please fix the flaky test asap","expect_target":"mixed","expect_urgency":2,"got_target":"mixed","got_urgency":2,"hitTarget":true,"hitUrgency":true}
+{"id":"m029","group":"mixed","text":"晚上好，不急，有空再帮我优化下启动速度","expect_target":"mixed","expect_urgency":0,"got_target":"worker","got_urgency":0,"hitTarget":false,"hitUrgency":true}
+{"id":"m030","group":"mixed","text":"早安，今天帮我把部署文档写完吧","expect_target":"mixed","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"p001","group":"trap","text":"这个 bug 也太离谱了吧，哈哈哈哈","expect_target":"main","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p002","group":"trap","text":"文档写得真好，我看完了","expect_target":"main","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p003","group":"trap","text":"安装教程在哪里能找到呀","expect_target":"main","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p004","group":"trap","text":"修复得好快，佩服佩服","expect_target":"main","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p005","group":"trap","text":"帮我看看今天天气怎么样","expect_target":"main","expect_urgency":1,"got_target":"mixed","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p006","group":"trap","text":"你们这个 readme 真有意思","expect_target":"main","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p007","group":"trap","text":"fix 得不错，下个版本什么时候发","expect_target":"main","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p008","group":"trap","text":"今天好累啊，什么也不想干","expect_target":"main","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"p009","group":"trap","text":"刚吃完饭，撑死了","expect_target":"main","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":true,"hitUrgency":true}
+{"id":"p010","group":"trap","text":"那个报错截图我再发你一次，你之前说周末看的","expect_target":"worker","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p011","group":"trap","text":"这个报错能处理吗？","expect_target":"worker","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p012","group":"trap","text":"上次会议说的那个功能做了没","expect_target":"worker","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p013","group":"trap","text":"昨天让你查的那个问题后来怎样了","expect_target":"worker","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p014","group":"trap","text":"那个部署的事，尽快弄一下吧","expect_target":"worker","expect_urgency":2,"got_target":"main","got_urgency":2,"hitTarget":false,"hitUrgency":true}
+{"id":"p015","group":"trap","text":"上次说的重构什么时候开工","expect_target":"worker","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p016","group":"trap","text":"线上那事很急，现在就得动","expect_target":"worker","expect_urgency":2,"got_target":"main","got_urgency":2,"hitTarget":false,"hitUrgency":true}
+{"id":"p017","group":"trap","text":"订阅按钮还是坏的诶","expect_target":"worker","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p018","group":"trap","text":"头像上传好像又不行了","expect_target":"worker","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p019","group":"trap","text":"封面图还是加载不出来","expect_target":"worker","expect_urgency":1,"got_target":"main","got_urgency":1,"hitTarget":false,"hitUrgency":true}
+{"id":"p020","group":"trap","text":"那个啥，文档还欠着呢","expect_target":"worker","expect_urgency":1,"got_target":"worker","got_urgency":1,"hitTarget":true,"hitUrgency":true}
