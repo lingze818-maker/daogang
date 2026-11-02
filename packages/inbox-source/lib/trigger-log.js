@@ -15,7 +15,7 @@ export function appendTrigger(file, trigger) {
  * 返回停止函数；signal 中止后不再回调。
  */
 export function watchTriggerLog(file, onTrigger, signal, options = {}) {
-    const intervalMs = options.intervalMs ?? 1000;
+    const intervalMs = options.intervalMs ?? 250;
     const seen = options.seen ?? new Set();
     let stopped = false;
     const stop = () => { stopped = true; };
