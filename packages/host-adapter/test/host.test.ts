@@ -282,7 +282,8 @@ describe('DuiyingHost', () => {
   it('accepts the daogang-local secret file and still fails closed without a server', async () => {
     const dir = home()
     writeFileSync(join(dir, 'duiying.local.json'), `${JSON.stringify({ secret: 'file-secret' })}\n`)
-    const host = new DuiyingHost({ home: dir, env: {} })
+    // 指向一个必然拒连的地址（loopback 保留端口），不依赖本机是否恰好在跑对影
+    const host = new DuiyingHost({ home: dir, env: { DAOGANG_DUIYING_BASE_URL: 'http://127.0.0.1:1' } })
     const auth = await host.auth()
     expect(auth.state).toBe('anonymous')
     expect(auth.detail).not.toContain('file-secret')

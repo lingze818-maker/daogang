@@ -96,7 +96,7 @@ describe('executor port', () => {
       },
     ])
     const loaded = adapter.loadedFrom
-    expect(loaded?.endsWith('/src/executor/dsh.js')).toBe(true)
+    expect(loaded?.split(/[\\/]/).slice(-3).join('/')).toBe('src/executor/dsh.js')
     const mod = await import(pathToFileURL(loaded ?? '').href) as { timesConstructed: () => number }
     expect(mod.timesConstructed()).toBe(2)
   })

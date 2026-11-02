@@ -297,7 +297,7 @@ async function probeConfigured() {
       const rest = [...spec.argv]
       while (rest[0] === 'env' || /^[A-Z_]+=/.test(rest[0] ?? '')) rest.shift()
       const key = rest.join(' ')
-      calls.push(rest.map((part, index) => (index === 0 ? String(part).split('/').at(-1) : part)))
+      calls.push(rest.map((part, index) => (index === 0 ? String(part).split(/[\\/]/).at(-1) : part)))
       const answer = key === userArgv ? '{"login":"probe","id":1}\n'
         : key === repoArgv ? '{"name":"probe/probe","push":true}\n'
           : key === gitArgv ? gitStdout : undefined
@@ -404,7 +404,9 @@ async function probeConfigured() {
         ['probe-cli', 'api', 'repos/probe/probe', '--jq', '{name: .full_name, push: .permissions.push}'],
         ['git', 'config', '-z', '--show-origin', '--get-all', 'credential.https://github.com.helper'],
       ]
-      if (JSON.stringify(calls) !== JSON.stringify(expectedCalls)) throw new Error('subprocess fixture saw unexpected argv')
+      if (JSON.stringify(calls) !== JSON.stringify(expectedCalls)) {
+        throw new Error(`subprocess fixture saw unexpected argv: ${JSON.stringify(calls)}`)
+      }
       try {
         report.session = await probeMasterSession({
           runtime,
