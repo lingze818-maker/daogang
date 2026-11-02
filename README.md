@@ -176,3 +176,37 @@ bash scripts/demo.sh
 [MIT](LICENSE) © 2026 lingze818-maker
 
 本仓库是独立实验，不是 DeepSeek 官方产品。上游原型：[deepseek-ai/dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype)（MIT）。
+
+## 常见问题
+
+### 现在能用到什么程度？
+
+外围演示已经能跑：`pnpm dispatch` / `pnpm listen` 负责派单、打断、招领和留痕，闲聊回本地 `main-stub`。B2 仍半开：默认 `LocalExecutor` 只把派工记在 `.daogang/executor.json`，还没有活的 DSH worker Session。
+
+### 需要 API key 或先 clone 底座吗？
+
+都不用。没设 `DEEPSEEK_API_KEY` 时按关键词兜底；默认执行口是 `local`，不需要 `DAOGANG_DSH_ROOT`，`pnpm test` 也不需要密钥。只有想试适配器时才 clone 底座并设置这个变量；它只核对 `launch` / `delivery` 进了 `enqueue`，不拉起 worker。
+
+### 和 dsh-superagent-prototype 是什么关系？
+
+到岗是叠在上游原型上的实验层，只走它的公开扩展面（Source + 外围分发器），不是上游的分支，也不把上游代码复制进本仓。上游关闭了 Issues，待验证问题记在本仓 `docs/notes/` 的笔记里。
+
+### 为什么不直接做成 DSH 插件？
+
+分发器先放外围：路由、打断和 mixed 拆分在本仓做，再经 Source 注入；站稳之后再考虑收成 Cordis 插件。inbox Source 的挂载步骤写在 [packages/inbox-source/README.md](packages/inbox-source/README.md)，默认 `disabled: true`。
+
+### dispatch 的 trigger 会送进正在跑的 DSH 服务吗？
+
+现在不会。CLI 是独立进程，`LocalInbox` 只落接单回执；DSH 进程里的 feed 是内存队列。跨进程桥还没做，进度见 [#24](https://github.com/lingze818-maker/daogang/issues/24)。
+
+### 数据写在哪？会进仓库吗？
+
+审计行在 `.daogang/board.jsonl`，派工记录在 `.daogang/executor.json`，目录可用 `DAOGANG_HOME` 改。`.daogang/` 已在 `.gitignore` 中，真实对话样本不提交。
+
+### 现在能接哪些宿主？
+
+目前只有本地 CLI。`HostAdapter` 接口和 `LocalCliHost` 在 `packages/host-adapter`；适配顺序是对影 > zcode > Codex。对影的进窗和用户话钩子已接线，并做过本机 loopback 真调；zcode、Codex 还没开始。
+
+### 可以商用或改吗？
+
+可以，MIT。本仓是独立实验，不是 DeepSeek 官方产品；上游原型同样以 MIT 开源。
