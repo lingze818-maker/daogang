@@ -1,0 +1,70 @@
+{
+  "suite": "D3 打断恢复正确率（外围路径）",
+  "at": "2026-11-02T04:42:50.248Z",
+  "total": 12,
+  "passed": 12,
+  "pass_rate": 1,
+  "failures": [],
+  "cases": [
+    {
+      "id": "u01-idle-runs",
+      "desc": "空闲收单：直接 running，队列为空",
+      "pass": true
+    },
+    {
+      "id": "u02-same-urgency-queues",
+      "desc": "同级不打断：新单排队，当前不动",
+      "pass": true
+    },
+    {
+      "id": "u03-lower-urgency-queues",
+      "desc": "低优不打断高优：只排队",
+      "pass": true
+    },
+    {
+      "id": "u04-higher-interrupts",
+      "desc": "高优打断低优：新单上、旧单入队、备注≤200",
+      "pass": true
+    },
+    {
+      "id": "u05-fifo-after-interrupt",
+      "desc": "打断后继续排队保持 FIFO 顺序",
+      "pass": true
+    },
+    {
+      "id": "u06-post-interrupt-lower-queues",
+      "desc": "打断发生后再来低优：不打断，排队",
+      "pass": true
+    },
+    {
+      "id": "u07-multi-queue-interrupt",
+      "desc": "队列已有两张时打断：paused 排到队尾",
+      "pass": true
+    },
+    {
+      "id": "u08-idle-zero-urgency-runs",
+      "desc": "空闲时再闲的单也直接干（不排队）",
+      "pass": true
+    },
+    {
+      "id": "u09-handoff-clamp-200",
+      "desc": "超长摘要被打断：交接备注仍≤200",
+      "pass": true
+    },
+    {
+      "id": "u10-paused-info-integrity",
+      "desc": "被打断工单五字段逐项无损（恢复的前提）",
+      "pass": true
+    },
+    {
+      "id": "r01-lane-roundtrip",
+      "desc": "打断后状态落盘→重读，状态全等（走神能回来）",
+      "pass": true
+    },
+    {
+      "id": "e01-e2e-interrupt",
+      "desc": "端到端三连：普通→急 mixed（打断）→不急，看板与备注正确",
+      "pass": true
+    }
+  ]
+}
