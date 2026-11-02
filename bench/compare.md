@@ -1,22 +1,35 @@
 # D2 · 关键词兜底 vs Flash 路由（同一数据集 100 条）
 
-_keywords: 2026-11-02T04:48:50.176Z · flash: 待跑（需 DEEPSEEK_API_KEY）_
+_keywords: 2026-11-02T04:48:50.176Z · flash: 2026-11-02T05:12:52.687Z_
+_flash 实走 100 条 / 回落关键词 0 条（回落>0 时对照结论需注明）_
 
 | 指标 | 关键词兜底 | Flash 路由 |
 |---|---|---|
-| target 准确率（总体） | 0.690 | —（待 flash 跑） |
-| urgency 准确率（总体） | 1.000 | —（待 flash 跑） |
-| target+urgency（总体） | 0.690 | —（待 flash 跑） |
-| target 准确率（task） | 0.880 (n=50) | —（待 flash 跑） |
-| target 准确率（mixed） | 0.733 (n=30) | —（待 flash 跑） |
-| target 准确率（trap） | 0.150 (n=20) | —（待 flash 跑） |
+| target 准确率（总体） | 0.690 | 0.970 |
+| urgency 准确率（总体） | 1.000 | 0.870 |
+| target+urgency（总体） | 0.690 | 0.840 |
+| target 准确率（task） | 0.880 (n=50) | 1.000 (n=50) |
+| target 准确率（mixed） | 0.733 (n=30) | 0.967 (n=30) |
+| target 准确率（trap） | 0.150 (n=20) | 0.900 (n=20) |
 
-## 跑法（额度恢复后）
+## 判读
 
-```bash
-export DEEPSEEK_API_KEY=<key>
-node --experimental-strip-types bench/run-bench.mjs --router flash
-node --experimental-strip-types bench/compare.mjs   # 重新生成本表
-```
+- 总体 target：0.690 → 0.970（+0.280）
+- trap 组：0.150 → 0.900——三层盲区（名词误触发/词表窄/祈使无呼语）被 Flash 解掉多少
 
-焦点看 trap 组：关键词 0.15（D1 实测），Flash 若显著更高，"小模型路由+关键词兜底"双层设计即有数据支撑。
+## 混合模式（第三结论，预案 2.2 预言的"两全"被数据证实）
+
+target 用 Flash（0.97）+ urgency 用关键词规则（1.00），逐条联合：
+
+| 指标 | 关键词 | Flash | **混合** |
+|---|---|---|---|
+| target+urgency 总体 | 0.690 | 0.840 | **0.970** |
+| task | 0.880 | 0.920 | **1.000** |
+| mixed | 0.733 | 0.933 | **0.967** |
+| trap | 0.150 | 0.800 | **0.900** |
+
+架构含义：`routeText` 现在是"Flash 出全量 decision、失败才整条回落规则"；数据支持改为**混合裁决**——target/cards 信 Flash，urgency 信规则词表（马上/不急这类节奏词是精确信号，模型反而会"过度理解"）。实现是 `route.ts` 一处小改，待拍板后做。
+
+## 诚实备注（勿为刷分改标签的延伸）
+
+urgency 对照里 Flash 的 13 个"错"分两类：①坏消息报障判 2（"头像上传又不行了"——标签 1，模型判急，语义上可辩护）②纯吐槽判 0（"这个 bug 太离谱"——标签 1，模型判闲聊不插队，语义上也可辩护）。**标签以人的显式节奏词为准，未迁就模型**；混合模式正是承认这个边界：节奏词是显式信号归规则，语义路由归模型。
