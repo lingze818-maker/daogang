@@ -1,6 +1,6 @@
 {
   "router": "keywords",
-  "at": "2026-11-02T04:26:22.848Z",
+  "at": "2026-11-02T04:48:50.176Z",
   "total": 100,
   "target_accuracy": 0.69,
   "urgency_accuracy": 1,
@@ -30,6 +30,7 @@
       "id": "t012",
       "group": "task",
       "text": "紧急：把泄露的 API key 从历史提交里清掉",
+      "via": "rules",
       "expect": "worker/2",
       "got": "main/2"
     },
@@ -37,6 +38,7 @@
       "id": "t018",
       "group": "task",
       "text": "把错误提示文案统一成中文",
+      "via": "rules",
       "expect": "worker/1",
       "got": "main/1"
     },
@@ -44,6 +46,7 @@
       "id": "t022",
       "group": "task",
       "text": "尽快把版本号更新到 0.2",
+      "via": "rules",
       "expect": "worker/2",
       "got": "main/2"
     },
@@ -51,6 +54,7 @@
       "id": "t032",
       "group": "task",
       "text": "立刻把防火墙规则改回来，端口暴露了",
+      "via": "rules",
       "expect": "worker/2",
       "got": "main/2"
     },
@@ -58,6 +62,7 @@
       "id": "t040",
       "group": "task",
       "text": "把过期的证书换成新的，尽快",
+      "via": "rules",
       "expect": "worker/2",
       "got": "main/2"
     },
@@ -65,6 +70,7 @@
       "id": "t049",
       "group": "task",
       "text": "把示例代码改成可运行的完整版",
+      "via": "rules",
       "expect": "worker/1",
       "got": "main/1"
     },
@@ -72,6 +78,7 @@
       "id": "m001",
       "group": "mixed",
       "text": "早呀，顺便帮我修一下顶栏的对齐",
+      "via": "rules",
       "expect": "mixed/1",
       "got": "worker/1"
     },
@@ -79,6 +86,7 @@
       "id": "m004",
       "group": "mixed",
       "text": "嗨，忙着呢？马上帮我看下报警是怎么回事",
+      "via": "rules",
       "expect": "mixed/2",
       "got": "worker/2"
     },
@@ -86,6 +94,7 @@
       "id": "m007",
       "group": "mixed",
       "text": "今天好累，不过还是得修一下这个 bug",
+      "via": "rules",
       "expect": "mixed/1",
       "got": "worker/1"
     },
@@ -93,6 +102,7 @@
       "id": "m010",
       "group": "mixed",
       "text": "早上好，麻烦把昨晚的构建日志排查一下",
+      "via": "rules",
       "expect": "mixed/1",
       "got": "worker/1"
     },
@@ -100,6 +110,7 @@
       "id": "m012",
       "group": "mixed",
       "text": "在吗？紧急！把测试环境的数据库回滚",
+      "via": "rules",
       "expect": "mixed/2",
       "got": "main/2"
     },
@@ -107,6 +118,7 @@
       "id": "m020",
       "group": "mixed",
       "text": "今天天气真好，不急，有空帮我排查下那个内存警告",
+      "via": "rules",
       "expect": "mixed/0",
       "got": "worker/0"
     },
@@ -114,6 +126,7 @@
       "id": "m022",
       "group": "mixed",
       "text": "哈喽，马上帮我把这个热修分支合了",
+      "via": "rules",
       "expect": "mixed/2",
       "got": "worker/2"
     },
@@ -121,6 +134,7 @@
       "id": "m029",
       "group": "mixed",
       "text": "晚上好，不急，有空再帮我优化下启动速度",
+      "via": "rules",
       "expect": "mixed/0",
       "got": "worker/0"
     },
@@ -128,6 +142,7 @@
       "id": "p001",
       "group": "trap",
       "text": "这个 bug 也太离谱了吧，哈哈哈哈",
+      "via": "rules",
       "expect": "main/1",
       "got": "mixed/1"
     },
@@ -135,6 +150,7 @@
       "id": "p002",
       "group": "trap",
       "text": "文档写得真好，我看完了",
+      "via": "rules",
       "expect": "main/1",
       "got": "worker/1"
     },
@@ -142,6 +158,7 @@
       "id": "p003",
       "group": "trap",
       "text": "安装教程在哪里能找到呀",
+      "via": "rules",
       "expect": "main/1",
       "got": "worker/1"
     },
@@ -149,6 +166,7 @@
       "id": "p004",
       "group": "trap",
       "text": "修复得好快，佩服佩服",
+      "via": "rules",
       "expect": "main/1",
       "got": "worker/1"
     },
@@ -156,6 +174,7 @@
       "id": "p005",
       "group": "trap",
       "text": "帮我看看今天天气怎么样",
+      "via": "rules",
       "expect": "main/1",
       "got": "mixed/1"
     },
@@ -163,6 +182,7 @@
       "id": "p006",
       "group": "trap",
       "text": "你们这个 readme 真有意思",
+      "via": "rules",
       "expect": "main/1",
       "got": "worker/1"
     },
@@ -170,6 +190,7 @@
       "id": "p007",
       "group": "trap",
       "text": "fix 得不错，下个版本什么时候发",
+      "via": "rules",
       "expect": "main/1",
       "got": "worker/1"
     },
@@ -177,6 +198,7 @@
       "id": "p010",
       "group": "trap",
       "text": "那个报错截图我再发你一次，你之前说周末看的",
+      "via": "rules",
       "expect": "worker/1",
       "got": "main/1"
     },
@@ -184,6 +206,7 @@
       "id": "p011",
       "group": "trap",
       "text": "这个报错能处理吗？",
+      "via": "rules",
       "expect": "worker/1",
       "got": "main/1"
     },
@@ -191,6 +214,7 @@
       "id": "p012",
       "group": "trap",
       "text": "上次会议说的那个功能做了没",
+      "via": "rules",
       "expect": "worker/1",
       "got": "main/1"
     },
@@ -198,6 +222,7 @@
       "id": "p013",
       "group": "trap",
       "text": "昨天让你查的那个问题后来怎样了",
+      "via": "rules",
       "expect": "worker/1",
       "got": "main/1"
     },
@@ -205,6 +230,7 @@
       "id": "p014",
       "group": "trap",
       "text": "那个部署的事，尽快弄一下吧",
+      "via": "rules",
       "expect": "worker/2",
       "got": "main/2"
     },
@@ -212,6 +238,7 @@
       "id": "p015",
       "group": "trap",
       "text": "上次说的重构什么时候开工",
+      "via": "rules",
       "expect": "worker/1",
       "got": "main/1"
     },
@@ -219,6 +246,7 @@
       "id": "p016",
       "group": "trap",
       "text": "线上那事很急，现在就得动",
+      "via": "rules",
       "expect": "worker/2",
       "got": "main/2"
     },
@@ -226,6 +254,7 @@
       "id": "p017",
       "group": "trap",
       "text": "订阅按钮还是坏的诶",
+      "via": "rules",
       "expect": "worker/1",
       "got": "main/1"
     },
@@ -233,6 +262,7 @@
       "id": "p018",
       "group": "trap",
       "text": "头像上传好像又不行了",
+      "via": "rules",
       "expect": "worker/1",
       "got": "main/1"
     },
@@ -240,6 +270,7 @@
       "id": "p019",
       "group": "trap",
       "text": "封面图还是加载不出来",
+      "via": "rules",
       "expect": "worker/1",
       "got": "main/1"
     }
