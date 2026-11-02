@@ -132,13 +132,14 @@ Runtime 构造和 stub `sessions.prompt` 是另一条，同样不读密钥，`pn
 DAOGANG_DSH_ROOT=/绝对路径/dsh-superagent-prototype node scripts/check-runtime.mjs
 ```
 
-没设变量时退出 0。v24 成功时：`runtime.constructed` 为 true，`healthCode` 是 `setupPending`，`effectsStarted` 为 false；`launch.checked` 为 true，`cardsInAssignment` 与 `cardsInTriggerText` 为 true，`modelCalled` 为 false。v22.23.4 上 Runtime 一段失败、脚本退出非 0，launch 一段仍可通过。细节在 [底座结构笔记 §10](docs/notes/底座结构笔记-2026-11-01.md)。
+没设变量时退出 0。v24 成功时：`runtime.constructed` 为 true，`healthCode` 是 `setupPending`，`effectsStarted` 为 false；`configured.passed` 为 true，`configured.effectsStarted` 与 `configured.masterEnsure` 为 true，`agentDeliverySend` 为 false；`launch.checked` 为 true，`cardsInAssignment` 与 `cardsInTriggerText` 为 true，`modelCalled` 为 false。configured 这一段用临时库里的 `probe/probe` 和夹具 `subprocess.spawn` 让 `Setup.run` 返回 true，不调用 `gh`。v22.23.4 上 Runtime 与 configured 两段失败、脚本退出非 0，launch 一段仍可通过。细节在 [底座结构笔记 §10](docs/notes/底座结构笔记-2026-11-01.md)。
 
 下面几件仍然 **未验证**：
 
 - 正在跑的 superagent 进程。Runtime 探测用的 webServer 只登记、不监听
-- 活的 `worker-<ticketId>` Session。stub `sessions.ensure` 没有创建 DSH Session
-- 卡片文本有没有进入一次真实的 worker 模型请求。stub `sessions.prompt` 记下了首条消息，没有调用 `llm`
+- 活的主会话和 `worker-<ticketId>` Session。configured 路径的主会话 `ensure` 是桩，没有 `sessionController`；launch 路径的 stub `sessions.ensure` 也没有创建 DSH Session
+- 卡片文本有没有进入一次真实的 worker 模型请求。stub `sessions.prompt` 记下了首条消息，没有调用 `llm`。configured 路径上 `AgentDelivery.send` 是 0 次
+- 真实的 `gh` 身份。`configured()===true` 靠夹具 stdout，不是 GitHub 账号
 
 ## 接着试
 
