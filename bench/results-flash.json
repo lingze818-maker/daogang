@@ -1,0 +1,162 @@
+{
+  "router": "flash",
+  "at": "2026-11-02T05:12:52.687Z",
+  "total": 100,
+  "target_accuracy": 0.97,
+  "urgency_accuracy": 0.87,
+  "both_accuracy": 0.84,
+  "via": {
+    "flash": 100,
+    "fallback_rules": 0
+  },
+  "by_group": {
+    "task": {
+      "n": 50,
+      "target": 1,
+      "urgency": 0.92,
+      "both": 0.92
+    },
+    "mixed": {
+      "n": 30,
+      "target": 0.967,
+      "urgency": 1,
+      "both": 0.967
+    },
+    "trap": {
+      "n": 20,
+      "target": 0.9,
+      "urgency": 0.55,
+      "both": 0.45
+    }
+  },
+  "misses": [
+    {
+      "id": "t015",
+      "group": "task",
+      "text": "稍后帮我看看测试为什么偶发失败",
+      "via": "flash",
+      "expect": "worker/0",
+      "got": "worker/1"
+    },
+    {
+      "id": "t016",
+      "group": "task",
+      "text": "安装脚本在 macOS 上跑不通，修一下",
+      "via": "flash",
+      "expect": "worker/1",
+      "got": "worker/2"
+    },
+    {
+      "id": "t033",
+      "group": "task",
+      "text": "修复移动端菜单点不开的问题",
+      "via": "flash",
+      "expect": "worker/1",
+      "got": "worker/2"
+    },
+    {
+      "id": "t036",
+      "group": "task",
+      "text": "帮我排查内存泄漏，服务两周必重启",
+      "via": "flash",
+      "expect": "worker/1",
+      "got": "worker/2"
+    },
+    {
+      "id": "m013",
+      "group": "mixed",
+      "text": "哈哈好，那帮我实现你说那个方案吧",
+      "via": "flash",
+      "expect": "mixed/1",
+      "got": "worker/1"
+    },
+    {
+      "id": "p001",
+      "group": "trap",
+      "text": "这个 bug 也太离谱了吧，哈哈哈哈",
+      "via": "flash",
+      "expect": "main/1",
+      "got": "main/0"
+    },
+    {
+      "id": "p002",
+      "group": "trap",
+      "text": "文档写得真好，我看完了",
+      "via": "flash",
+      "expect": "main/1",
+      "got": "main/0"
+    },
+    {
+      "id": "p004",
+      "group": "trap",
+      "text": "修复得好快，佩服佩服",
+      "via": "flash",
+      "expect": "main/1",
+      "got": "main/0"
+    },
+    {
+      "id": "p006",
+      "group": "trap",
+      "text": "你们这个 readme 真有意思",
+      "via": "flash",
+      "expect": "main/1",
+      "got": "main/0"
+    },
+    {
+      "id": "p007",
+      "group": "trap",
+      "text": "fix 得不错，下个版本什么时候发",
+      "via": "flash",
+      "expect": "main/1",
+      "got": "mixed/1"
+    },
+    {
+      "id": "p008",
+      "group": "trap",
+      "text": "今天好累啊，什么也不想干",
+      "via": "flash",
+      "expect": "main/1",
+      "got": "main/0"
+    },
+    {
+      "id": "p009",
+      "group": "trap",
+      "text": "刚吃完饭，撑死了",
+      "via": "flash",
+      "expect": "main/1",
+      "got": "main/0"
+    },
+    {
+      "id": "p013",
+      "group": "trap",
+      "text": "昨天让你查的那个问题后来怎样了",
+      "via": "flash",
+      "expect": "worker/1",
+      "got": "main/1"
+    },
+    {
+      "id": "p017",
+      "group": "trap",
+      "text": "订阅按钮还是坏的诶",
+      "via": "flash",
+      "expect": "worker/1",
+      "got": "worker/2"
+    },
+    {
+      "id": "p018",
+      "group": "trap",
+      "text": "头像上传好像又不行了",
+      "via": "flash",
+      "expect": "worker/1",
+      "got": "worker/2"
+    },
+    {
+      "id": "p019",
+      "group": "trap",
+      "text": "封面图还是加载不出来",
+      "via": "flash",
+      "expect": "worker/1",
+      "got": "worker/2"
+    }
+  ]
+}
