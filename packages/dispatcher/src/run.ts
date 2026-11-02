@@ -304,6 +304,7 @@ async function runChat(
   try {
     if (options.failLane === 'chat') throw new Error('目标离线或超时')
     const trigger = inboxTrigger({
+      actorId: 'cli', // 与 DSH inbox Policy 名单的 cli 行对齐（explicit sender）
       messageId,
       at,
       text,
@@ -330,6 +331,7 @@ async function runTask(
     if (options.beforeTask) await options.beforeTask()
     if (options.failLane === 'task') throw new Error('目标离线或超时')
     const trigger = inboxTrigger({
+      actorId: 'cli', // 与 DSH inbox Policy 名单的 cli 行对齐（explicit sender）
       messageId,
       at,
       text,
