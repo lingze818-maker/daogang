@@ -125,8 +125,8 @@ DAOGANG_DSH_ROOT=<上游克隆> node scripts/check-effects.mjs
 DAOGANG_DSH_ROOT=<上游克隆> node scripts/check-runtime.mjs
 ```
 
-没设变量时退出 0。v24.22.2 上：空 GitHub 配置的 `Runtime` 停在 `setupPending`，`effects.start()` 没有被调用；夹具让 `configured()` 为 true 之后，`effects.start()` 一次，主会话 `sessions.ensure` 一次（桩，没有 `sessionController`）；齐全的票夹具让 handler 进入私有 `launch()`，stub `sessions.prompt` 的 `assignment` 和 `trigger.text` 仍含 `[daogang-cards]`。v22.23.4 解析不了 `await using`，Runtime 与 configured 两段失败。细节在结构笔记 §10。
+没设变量时退出 0。v24.22.2 上：空 GitHub 配置的 `Runtime` 停在 `setupPending`，`effects.start()` 没有被调用；夹具让 `configured()` 为 true 之后，`effects.start()` 一次，主会话 `sessions.ensure` 一次（桩，没有 `sessionController`）；齐全的票夹具让 handler 进入私有 `launch()`，stub `sessions.prompt` 的 `assignment` 和 `trigger.text` 仍含 `[daogang-cards]`。`effects.start()` 之后，公开 `SessionController` 插件停在未激活（JSON 的 `session.blockedAt` / `missingHooks`，这段退出码仍是 0），`SessionStore.create` 得到同一 `masterId` 的 `Session`。v22.23.4 解析不了 `await using`，Runtime、configured 与 session 三段失败。细节在结构笔记 §10。
 
 ## 还没验证
 
-没有启动 superagent 进程。Runtime 探测的 webServer 只登记、不监听。stub `sessions.ensure` / `prompt` 没有创建 DSH Session，也没有模型请求。`configured()===true` 已经用夹具走过，真实 `gh` 身份没有。Channel 和 `threadContext` 没做。假 orchestrator 不是装好的 dsh-superagent 进程。plugin-loader 读 `disabled: false` 的 profile 这一轮没有再跑；补丁文件仍是 `disabled: true`。
+没有启动 superagent 进程。Runtime 探测的 webServer 只登记、不监听。`Runtime.initialize` 的 stub `sessions.ensure` 没有创建 DSH Session。`SessionStore.create` 得到的是内存 `Session`，不是 `sessionController` 管的活 Agent，也没有模型请求。`configured()===true` 已经用夹具走过，真实 `gh` 身份没有。Channel 和 `threadContext` 没做。假 orchestrator 不是装好的 dsh-superagent 进程。plugin-loader 读 `disabled: false` 的 profile 这一轮没有再跑；补丁文件仍是 `disabled: true`。

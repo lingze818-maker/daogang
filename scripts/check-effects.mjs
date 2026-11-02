@@ -11,7 +11,7 @@
  * - 用公开的 triggerMessage、ticketExecution、inputMessage 核对卡片文本。
  * - 用 Cordis Context.plugin 加一个假 orchestrator，走 configured 真假两条。
  *   不改 cordis.patch.yml 的 disabled: true，不构造 Runtime。
- *   构造 Runtime、以及 Effects.start() 进到 stub sessions.prompt，见 scripts/check-runtime.mjs。
+ *   构造 Runtime、Effects.start() 进到 stub sessions.prompt，以及主会话的公开 Session 构造，见 scripts/check-runtime.mjs。
  *
  * 没设根目录时只说明跳过，退出 0。pnpm test 不跑这一段。
  * 打印的结果不含绝对路径。

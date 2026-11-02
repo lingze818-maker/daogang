@@ -49,7 +49,7 @@
 - 接单失败追加 `"status":"claim"` 的招领行。`DAOGANG_FAIL_LANE=task` 用来演示离线或超时。
 - `bash scripts/demo.sh` 把上面串成一次终端演示。记录在 [docs/demo/peripheral.cast](docs/demo/peripheral.cast)。GIF 还没有。
 
-**B2 仍半开。** 默认没有真 DSH 会话。可选根目录只把 `start` / `deliver` 的 enqueue 接到站位 effects，不拉起 worker，也不写底座 SQLite。要看 `effect` 表，跑下面的检查脚本。
+**B2 仍半开。** 默认没有真 DSH 会话。可选根目录只把 `start` / `deliver` 的 enqueue 接到站位 effects，不拉起 worker，也不写底座 SQLite。要看 `effect` 表和主会话探测，跑下面的检查脚本。Node 24 上，`effects.start` 之后公开 `SessionStore.create` 能得到同一 `masterId` 的内存 `Session`；`SessionController` 仍硬挡。
 
 - 默认执行口是 `LocalExecutor`（`packages/dispatcher/src/executor.ts`）。它把派工记在 `.daogang/executor.json`，会话名是 `worker-<ticketId>`。不需要密钥，也不需要 clone 底座。
 - `DAOGANG_EXECUTOR=dsh` 且没设 `DAOGANG_DSH_ROOT`：和以前一样，抛出「DSH 未接线」，这次派工落成招领。
@@ -132,13 +132,22 @@ Runtime 构造和 stub `sessions.prompt` 是另一条，同样不读密钥，`pn
 DAOGANG_DSH_ROOT=/绝对路径/dsh-superagent-prototype node scripts/check-runtime.mjs
 ```
 
-没设变量时退出 0。v24 成功时：`runtime.constructed` 为 true，`healthCode` 是 `setupPending`，`effectsStarted` 为 false；`configured.passed` 为 true，`configured.effectsStarted` 与 `configured.masterEnsure` 为 true，`agentDeliverySend` 为 false；`launch.checked` 为 true，`cardsInAssignment` 与 `cardsInTriggerText` 为 true，`modelCalled` 为 false。configured 这一段用临时库里的 `probe/probe` 和夹具 `subprocess.spawn` 让 `Setup.run` 返回 true，不调用 `gh`。v22.23.4 上 Runtime 与 configured 两段失败、脚本退出非 0，launch 一段仍可通过。细节在 [底座结构笔记 §10](docs/notes/底座结构笔记-2026-11-01.md)。
+没设变量时退出 0。v24 成功时：`runtime.constructed` 为 true，`healthCode` 是 `setupPending`，`effectsStarted` 为 false；`configured.passed` 为 true，`configured.effectsStarted` 与 `configured.masterEnsure` 为 true，`agentDeliverySend` 为 false；`launch.checked` 为 true，`cardsInAssignment` 与 `cardsInTriggerText` 为 true，`modelCalled` 为 false；`session.passed` 为 true。configured 这一段用临时库里的 `probe/probe` 和夹具 `subprocess.spawn` 让 `Setup.run` 返回 true，不调用 `gh`。v22.23.4 上 Runtime、configured 与 session 三段失败、脚本退出非 0，launch 一段仍可通过。细节在 [底座结构笔记 §10](docs/notes/底座结构笔记-2026-11-01.md)。
+
+`session` 段在 `effects.start()` 之后才跑。本轮 `outcome` 是 `documented-block`，退出码仍是 0：
+
+- `session.blockedAt` 是 `SessionController`，`condition` 说明公开插件停在未激活，`missingHooks` 列出缺的公开服务
+- `session.ensure.reached` 为 false。原来的 `Sessions.ensure` 在 `resolveAgent` 前失败，因为 runtime 上下文没有 `sessionController`
+- `session.constructed.reached` 为 true，`via` 是 `SessionStore.create`。`id` 等于 `masterId`，`agentPreset` 是公开的 `ROUTER_PRESET`（`dsh-superagent-router`），`cwd` 是 state 目录。`title` 为 null，钩子是 `sessionController.rename`
+- `modelCalled`、`ghInvoked`、`fetchCalled`、`listened` 都是 false
+
+若以后 `SessionController` 激活并 `create` 出句柄，`outcome` 会变成 `session-controller`，退出码仍是 0。意外抛错才是非 0。
 
 下面几件仍然 **未验证**：
 
 - 正在跑的 superagent 进程。Runtime 探测用的 webServer 只登记、不监听
-- 活的主会话和 `worker-<ticketId>` Session。configured 路径的主会话 `ensure` 是桩，没有 `sessionController`；launch 路径的 stub `sessions.ensure` 也没有创建 DSH Session
-- 卡片文本有没有进入一次真实的 worker 模型请求。stub `sessions.prompt` 记下了首条消息，没有调用 `llm`。configured 路径上 `AgentDelivery.send` 是 0 次
+- `sessionController` 管的活主会话，以及 `worker-<ticketId>` Session。`Runtime.initialize` 的主会话 `ensure` 仍是桩。`SessionStore.create` 得到的是内存里的 `Session`，没有经过 `sessionController.create` / `rename`，也没有 Agent 循环。launch 路径的 stub `sessions.ensure` 同样不创建 DSH Session
+- 卡片文本有没有进入一次真实的 worker 模型请求。stub `sessions.prompt` 记下了首条消息，没有调用 `llm`。configured 与 session 路径上 `AgentDelivery.send` 是 0 次，也没有 `fetch`
 - 真实的 `gh` 身份。`configured()===true` 靠夹具 stdout，不是 GitHub 账号
 
 ## 接着试
