@@ -3,8 +3,10 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  HostAdapter,
   HostAdapterError,
+} from './adapter.ts'
+import type {
+  HostAdapter,
   HostAuth,
   HostContext,
   HostMessage,
