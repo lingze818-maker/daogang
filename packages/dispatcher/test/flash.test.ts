@@ -51,4 +51,22 @@ describe('flash router', () => {
     expect(env.DAOGANG_FLASH_MODEL).toBe('deepseek-flash')
     expect(readFileSync(join(dir, '.env'), 'utf8')).not.toContain('already')
   })
+
+  it('hybrid: rules urgency words override flash urgency when they disagree', async () => {
+    const flash = {
+      async route() {
+        return { target: 'worker', urgency: 2, cards: [{ role: 'worker', kind: 'task', summary: '排查内存警告' }] }
+      },
+    }
+    // 「不急」是显式节奏词：Flash 判 2，规则裁决 0
+    const later = await routeText('不急，帮我排查下那个内存警告', flash)
+    expect(later.via).toBe('flash')
+    expect(later.decision.urgency).toBe(0)
+    expect(later.reason).toContain('节奏词')
+
+    // 无节奏词：落回规则的默认 1，即使 Flash 判 2
+    const plain = await routeText('帮我排查下那个内存警告', flash)
+    expect(plain.decision.urgency).toBe(1)
+    expect(plain.reason).toContain('节奏词')
+  })
 })
