@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, readFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, renameSync, statSync } from 'node:fs'
 import type { InboxTrigger } from './trigger.ts'
 
 /**
@@ -8,8 +8,17 @@ import type { InboxTrigger } from './trigger.ts'
  * 接单都以 trigger id 幂等，桥本身只需保证不重复投递。
  */
 
-/** dispatcher 侧：接单成功（accepted）后追加。坏行由读侧跳过，写侧不校验。 */
-export function appendTrigger(file: string, trigger: InboxTrigger): void {
+/** 单文件上限（默认 5MB）：超限轮转成 .1（覆盖旧 .1，只留一档——桥是热数据，旧 trigger 无回放价值）。 */
+const ROTATE_BYTES = 5 * 1024 * 1024
+
+/** dispatcher 侧：接单成功（accepted）后追加；超限先轮转。写侧不校验内容。 */
+export function appendTrigger(file: string, trigger: InboxTrigger, rotateBytes = ROTATE_BYTES): void {
+  try {
+    if (existsSync(file) && statSync(file).size >= rotateBytes) {
+      try { renameSync(`${file}.1`, `${file}.2`) } catch { /* 首次轮转没有 .2 */ }
+      renameSync(file, `${file}.1`)
+    }
+  } catch { /* stat 失败按未超限处理，不影响投递主路 */ }
   appendFileSync(file, `${JSON.stringify(trigger)}\n`, 'utf8')
 }
 
@@ -54,6 +63,7 @@ export function watchTriggerLog(
       }
     } catch {
       // 读侧竞态（写侧正在写）按本轮空过处理，下轮再读。
+      // ⚠️ 这里曾经静默吞过 ReferenceError（import 丢了 readFileSync）——排查此类问题先开临时探针看外层 catch。
     }
     if (!stopped) setTimeout(tick, intervalMs)
   }
