@@ -23,5 +23,5 @@ jobs:
       - run: pnpm test
       # inbox source 的构建产物入库（lib/），确保声明文件与实现同步
       - run: corepack pnpm build:inbox
-      - name: 无未提交变更
-        run: git diff --exit-code
+      - name: 无未提交变更（忽略行尾差异——Windows 生成产物与 Linux 构建的 CR 差异不算脱节）
+        run: git diff --ignore-cr-at-eol --exit-code
