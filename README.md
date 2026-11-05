@@ -197,15 +197,15 @@ bash scripts/demo.sh
 
 ### dispatch 的 trigger 会送进正在跑的 DSH 服务吗？
 
-现在不会。CLI 是独立进程，`LocalInbox` 只落接单回执；DSH 进程里的 feed 是内存队列。跨进程桥还没做，进度见 [#24](https://github.com/lingze818-maker/daogang/issues/24)。
+现在不会。CLI 是独立进程，`LocalInbox` 只落接单回执；DSH 进程里的 feed 是内存队列。跨进程桥还没合入，进度见 [#24](https://github.com/lingze818-maker/daogang/issues/24)。
 
 ### 数据写在哪？会进仓库吗？
 
-审计行在 `.daogang/board.jsonl`，派工记录在 `.daogang/executor.json`，目录可用 `DAOGANG_HOME` 改。`.daogang/` 已在 `.gitignore` 中，真实对话样本不提交。
+审计行在 `.daogang/board.jsonl`，接单回执在 `.daogang/inbox.json`，派工记录在 `.daogang/executor.json`，目录可用 `DAOGANG_HOME` 改。`.daogang/` 已在 `.gitignore` 中，真实对话样本不提交。
 
 ### 现在能接哪些宿主？
 
-目前只有本地 CLI。`HostAdapter` 接口和 `LocalCliHost` 在 `packages/host-adapter`；适配顺序是对影 > zcode > Codex。对影的进窗和用户话钩子已接线，并做过本机 loopback 真调；zcode、Codex 还没开始。
+默认是本地 CLI。`HostAdapter` 接口和 `LocalCliHost` 在 `packages/host-adapter`；适配顺序是对影 > zcode > Codex。对影的进窗和用户话钩子已接线，并做过本机 loopback 真调；zcode 还在适配，Codex 还没开始。
 
 ### 可以商用或改吗？
 
