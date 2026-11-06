@@ -60,6 +60,12 @@
 ## 状态
 
 - 2026-11-01：阶段 A 完成。底座结构笔记和 MVP 边界已写入 `docs/notes/`。
+- 2026-11-02：**D 阶段评测有数了**（同一数据集 100 条，可复跑）：
+  - D1 关键词兜底：target 0.690（trap 组 0.150）/ urgency 1.000——三类盲区（名词误触发、闲聊词表窄、祈使无呼语）见 `bench/README.md`
+  - D2 Flash 路由：target 0.970（trap 0.900）/ urgency 0.870，100 条全实走零回落
+  - **混合裁决（Flash 出 target/cards + 规则节奏词裁 urgency）联合 0.970**，已进 `routeText`（#20）
+  - D3 打断恢复：12 用例三层全过（pass 1.000），含五字段无损与落盘 roundtrip
+  - 边界不变：B2 仍无活 worker Session；对影 loopback 真调（inject+用户话钩子）已通过
 - 版本号写在根 `package.json` 的 `0.1.0-peripheral`。这是外围可用版，不是底座插件发布。
 
 ## 快速试跑
