@@ -5,11 +5,12 @@
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const dir = new URL('../packages/inbox-source/lib/', import.meta.url)
 for (const name of readdirSync(dir)) {
   if (!name.endsWith('.d.ts')) continue
-  const file = join(dir.pathname, name)
+  const file = join(fileURLToPath(dir), name)
   const source = readFileSync(file, 'utf8')
   const next = source.replaceAll(/from (['"])(\.[^'"]+)\.ts\1/g, 'from $1$2.js$1')
   if (/from (['"])\.[^'"]+\.ts\1/.test(next)) {
