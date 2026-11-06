@@ -31,6 +31,7 @@ export {
   type DuiyingUserPort,
 } from './user-hook.ts'
 export { LocalCliHost } from './local-cli.ts'
+export { ZcodeHost, type ZcodeHostOptions } from './zcode-host.ts'
 
 /** 默认 `local-cli`。对影要显式传入，并且需要到岗自己的目录来放映射。 */
 export function createHost(options: {
@@ -43,6 +44,15 @@ export function createHost(options: {
   if (kind === 'duiying') {
     if (!options.home) throw new HostAdapterError('DuiyingHost 需要一个目录')
     return new DuiyingHost({ home: options.home, baseUrl: options.baseUrl, env: options.env })
+  }
+  if (kind === 'zcode') {
+    const script = options.env?.DAOGANG_BOARD_SCRIPT
+    if (!script) throw new HostAdapterError('ZcodeHost 需要 DAOGANG_BOARD_SCRIPT 指到 agent-board 的 board.py')
+    return new ZcodeHost({
+      script,
+      root: options.env?.DAOGANG_BOARD_ROOT,
+      python: options.env?.DAOGANG_BOARD_PYTHON,
+    })
   }
   if (!options.home) throw new HostAdapterError('LocalCliHost 需要一个目录')
   return new LocalCliHost(options.home)
