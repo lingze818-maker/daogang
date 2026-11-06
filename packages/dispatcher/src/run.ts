@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { Board, type AuditRow, type BoardStatus } from '@daogang/board'
 import {
   LocalInbox,
+  appendTrigger,
   inboxTrigger,
   type Decision,
   type InboxReceipt,
@@ -57,6 +58,8 @@ export interface DispatchOutput {
 export interface Runtime {
   board: Board
   inbox: LocalInbox
+  /** 跨进程桥（issue #24）：接单成功的 trigger 追加到这份 jsonl，DSH 侧 inbox source tail 它。 */
+  triggerLog: string
   flash: FlashRouter
   workers: WorkerLane
   executor: ExecutorPort
@@ -82,6 +85,7 @@ export function openRuntime(home: string, env: NodeJS.ProcessEnv = process.env):
   return {
     board: new Board(join(home, 'board.jsonl')),
     inbox: new LocalInbox(join(home, 'inbox.json')),
+    triggerLog: join(home, 'triggers.jsonl'),
     flash: createFlashRouter(env),
     workers: new WorkerLane(join(home, 'worker.json')),
     executor: createExecutor(home, env),
@@ -299,13 +303,16 @@ async function runChat(
   options.onMain?.()
   try {
     if (options.failLane === 'chat') throw new Error('目标离线或超时')
-    const receipt = runtime.inbox.receive(inboxTrigger({
+    const trigger = inboxTrigger({
+      actorId: 'cli', // 与 DSH inbox Policy 名单的 cli 行对齐（explicit sender）
       messageId,
       at,
       text,
       decision,
       lane: 'chat',
-    }))
+    })
+    const receipt = runtime.inbox.receive(trigger)
+    if (receipt.status === 'accepted') appendTrigger(runtime.triggerLog, trigger)
     return { lane: 'chat', reply, receipt }
   } catch (error) {
     return { lane: 'chat', reply, error: safeError(error) }
@@ -323,13 +330,16 @@ async function runTask(
   try {
     if (options.beforeTask) await options.beforeTask()
     if (options.failLane === 'task') throw new Error('目标离线或超时')
-    const receipt = runtime.inbox.receive(inboxTrigger({
+    const trigger = inboxTrigger({
+      actorId: 'cli', // 与 DSH inbox Policy 名单的 cli 行对齐（explicit sender）
       messageId,
       at,
       text,
       decision,
       lane: 'task',
-    }))
+    })
+    const receipt = runtime.inbox.receive(trigger)
+    if (receipt.status === 'accepted') appendTrigger(runtime.triggerLog, trigger)
     return { lane: 'task', reply: null, receipt }
   } catch (error) {
     return { lane: 'task', reply: null, error: safeError(error) }

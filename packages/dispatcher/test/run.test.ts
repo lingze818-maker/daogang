@@ -20,6 +20,7 @@ function runtime(
   return {
     board: new Board(join(home, 'board.jsonl')),
     inbox: new LocalInbox(join(home, 'inbox.json'), () => ticketIds?.[cursor++] ?? 'abcd1234'),
+    triggerLog: join(home, 'triggers.jsonl'),
     flash: flash ?? { async route() { return null } },
     workers: new WorkerLane(join(home, 'worker.json')),
     executor: executor ?? new LocalExecutor(join(home, 'executor.json')),
