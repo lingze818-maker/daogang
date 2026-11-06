@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { assertHandoff } from './handoff.ts'
 
@@ -75,8 +75,12 @@ export class Board {
       handoffNote: assertHandoff(fields.handoffNote ?? current.handoffNote),
     }
     rows[index] = next
+    // 原子写（与 WorkerLane.save 同法）：跨进程并发下读-改-覆盖写不加锁，
+    // 至少保证读者永远看到完整文件，不会读到写了一半的行。
     mkdirSync(dirname(this.file), { recursive: true })
-    writeFileSync(this.file, `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`, 'utf8')
+    const tmp = `${this.file}.${process.pid}.tmp`
+    writeFileSync(tmp, `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`, 'utf8')
+    renameSync(tmp, this.file)
     return next
   }
 }

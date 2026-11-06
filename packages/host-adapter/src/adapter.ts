@@ -1,6 +1,6 @@
 /** 宿主无关的五个动作。分发器仍按自己的规则派活；这里只负责把结果交到某个宿主。 */
 
-export type HostId = 'local-cli' | 'duiying'
+export type HostId = 'local-cli' | 'duiying' | 'zcode'
 export type SessionKind = 'main' | 'worker'
 export type Urgency = 0 | 1 | 2
 
