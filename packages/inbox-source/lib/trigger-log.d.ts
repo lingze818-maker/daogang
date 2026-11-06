@@ -1,10 +1,4 @@
 import type { InboxTrigger } from './trigger.js';
-/**
- * 跨进程桥（issue #24，文件方案）：dispatch CLI 与 DSH 服务是两个进程，
- * trigger 经 DAOGANG_HOME/triggers.jsonl 传递——append-only，一行一个
- * InboxTrigger 的 JSON。读侧按 id 去重：LocalInbox 与 orchestrator 的
- * 接单都以 trigger id 幂等，桥本身只需保证不重复投递。
- */
 /** dispatcher 侧：接单成功（accepted）后追加；超限先轮转。写侧不校验内容。 */
 export declare function appendTrigger(file: string, trigger: InboxTrigger, rotateBytes?: number): void;
 export interface WatchOptions {
