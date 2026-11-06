@@ -91,3 +91,11 @@ _主责：鎏涟 · 更新：2026-11-02（B2：SessionController 公开插件在
 3. 外围可用版已能演示派单、主窗桩、打断和招领。B2 仍半开：默认 `LocalExecutor`；适配器的 enqueue 仍是站位。设了 `DAOGANG_DSH_ROOT` 时可跑 `scripts/check-effects.mjs`（effect 行与公开 prompt 文本）和 `scripts/check-runtime.mjs`（Node 24+：空配置停在 `setupPending`；夹具让 `configured()` 为 true 后会 `effects.start()` 并桩住主会话 `ensure`；stub `sessions.prompt` 含卡片；`effects.start` 之后公开 `SessionController` 硬挡，JSON 写 `blockedAt` / `missingHooks`，同时 `SessionStore.create` 得到同一 `masterId` 的 `Session`）。没有 `sessionController` 管的活 Agent，也没有真实模型请求。`Runtime.initialize` 里的主会话 `ensure` 仍是桩。`gh` 身份没有验证
 4. B6 的 GIF 先不做；终端记录在 `docs/demo/peripheral.cast`
 5. E1 接口在 `packages/host-adapter`（默认 Local）。对影 #59 已合入，进窗和用户话的 loopback 真调已通过。完整跨宿主适配仍和 C 并行。C1 的挂载说明已可按步骤做。假 orchestrator 的 `receive` 已在 Cordis Context 上对过。空配置的 `Runtime` 在 Node 24 上能构造并停在 `setupPending`。夹具配置下 `configured()` 为 true 时，同一 `Runtime` 会 `effects.start()` 并桩住主会话 `ensure`。公开 `SessionStore.create` 能得到同一 id 的 `Session`；`SessionController` 仍因 inject 硬挡。`sessionController` 管的活 Agent、真实 `gh` 身份、真实 webServer 和模型请求还没有
+
+---
+
+## 附注 · B2 状态定稿（2026-11-04）
+
+阶段 B 原列「B2 降级方案」（活 Session 攻不动则降级为「兼容 dsh 的独立工具」）——**11-03 凌晨端到端闭环后降级方案作废**：一句话派单 → 跨进程桥 → 评估 → ticket → worker Session → 自主开 PR（#26），活 Session 完整交付过一次。
+
+**当前唯一悬念**：可复现性。服务重启后 accepted 不落（issue #34，疑 source 配置不持久化），解明前「端到端」标注为「已达成一次、复现性依赖 #34」。外围全链路（路由/打断/招领/评测/宿主适配）不受影响。
