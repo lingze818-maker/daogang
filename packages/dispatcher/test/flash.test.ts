@@ -64,9 +64,14 @@ describe('flash router', () => {
     expect(later.decision.urgency).toBe(0)
     expect(later.reason).toContain('节奏词')
 
-    // 无节奏词：落回规则的默认 1，即使 Flash 判 2
+    // 无节奏词：落回规则的默认 1（即使 Flash 判 2），文案如实写"规则默认"
     const plain = await routeText('帮我排查下那个内存警告', flash)
     expect(plain.decision.urgency).toBe(1)
-    expect(plain.reason).toContain('节奏词')
+    expect(plain.reason).toContain('规则默认')
+    expect(plain.reason).not.toContain('节奏词')
+
+    // Flash 与规则一致：不提混合
+    const agree = await routeText('马上帮我排查下那个内存警告', { async route() { return { target: 'worker', urgency: 2, cards: [{ role: 'worker', kind: 'task', summary: '排查' }] } } })
+    expect(agree.reason).toBe('Flash 路由')
   })
 })
