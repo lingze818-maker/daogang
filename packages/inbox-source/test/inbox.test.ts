@@ -1,24 +1,18 @@
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  apply,
+  appendTrigger,
   CARD_MARK,
   cardBlock,
-  InboxFeed,
-  inboxConfigSchema,
-  inboxKind,
-  inboxPolicySchema,
   inboxScope,
   inboxTrigger,
-  inject,
   LocalInbox,
-  name,
   textWithCards,
+  watchTriggerLog,
   type Decision,
-  type InboxHealth,
-  type InboxLoopHost,
+  type InboxTrigger,
 } from '../src/index.ts'
 
 const decision: Decision = {
@@ -39,6 +33,11 @@ function trigger(lane: 'chat' | 'task' = 'task') {
     lane,
   })
 }
+
+const dirs: string[] = []
+afterEach(() => {
+  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
 
 describe('inbox source', () => {
   it('builds a stable explicit trigger', () => {
@@ -88,6 +87,7 @@ describe('inbox source', () => {
 
   it('accepts a task into worker-<ticketId> and a replay as duplicate', () => {
     const home = mkdtempSync(join(tmpdir(), 'daogang-inbox-'))
+    dirs.push(home)
     const inbox = new LocalInbox(join(home, 'inbox.json'), () => 'abcd1234')
     const first = inbox.receive(trigger())
     expect(first).toMatchObject({
@@ -103,107 +103,44 @@ describe('inbox source', () => {
 
   it('accepts chat on main without a ticket', () => {
     const home = mkdtempSync(join(tmpdir(), 'daogang-inbox-'))
+    dirs.push(home)
     const inbox = new LocalInbox(join(home, 'inbox.json'))
     const receipt = inbox.receive(trigger('chat'))
     expect(receipt.session).toBe('main')
     expect(receipt.ticketId).toBeNull()
   })
 
-  it('registers the kind on a sketch host', () => {
-    const seen: string[] = []
-    apply({ orchestrator: { sources: { register: (kind) => { seen.push(kind.kind) } } } })
-    expect(seen).toEqual([inboxKind.kind])
-    expect(name).toBe('daogang-inbox')
-    expect([...inject]).toEqual(['orchestrator'])
-    expect(inboxKind.scope({ meta: { conversation: 'other' } }, { conversation: 'cli' }).reason).toBe('conversation_not_listed')
-    expect(inboxKind.policy.rows({ conversation: 'cli' })[0]?.id).toBe('cli')
+  it('delivers triggers.jsonl through watchTriggerLog into LocalInbox once', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'daogang-inbox-'))
+    dirs.push(home)
+    const file = join(home, 'triggers.jsonl')
+    const inbox = new LocalInbox(join(home, 'inbox.json'), () => 'abcd1234')
+    const got: InboxTrigger[] = []
+    const controller = new AbortController()
+    const stop = watchTriggerLog(file, (item) => { got.push(item) }, controller.signal, { intervalMs: 20 })
+
+    appendTrigger(file, trigger())
+    await vi.waitFor(() => expect(got.map((item) => item.id)).toEqual(['inbox:m1:task']))
+
+    const receipt = inbox.receive(got[0]!)
+    expect(receipt).toMatchObject({
+      status: 'accepted',
+      ticketId: 'abcd1234',
+      session: 'worker-abcd1234',
+      lane: 'task',
+    })
+    expect(got[0]?.text).toContain(`${CARD_MARK}\n- docs/task: 补上安装说明`)
+
+    appendTrigger(file, trigger())
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    expect(got).toHaveLength(1)
+    expect(inbox.receive(got[0]!).status).toBe('duplicate')
+
+    stop()
+    controller.abort()
   })
 
-  it('registers scope on a cordis-shaped host and receives one trigger', async () => {
-    const feed = new InboxFeed()
-    const received: string[] = []
-    let registered: typeof inboxKind | undefined
-    const unregistered: string[] = []
-    const disposers: Array<() => void | Promise<void>> = []
-    let release: () => void = () => {}
-    const receivedGate = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    const source: InboxLoopHost = {
-      ready: Promise.resolve(),
-      configured: () => true,
-      config: () => ({ conversation: 'cli' }),
-      receive: (item) => {
-        received.push(item.id)
-        release()
-        return 'stored'
-      },
-      report: () => {},
-    }
-    apply({
-      inboxFeed: feed,
-      orchestrator: {
-        sources: {
-          register: (kind) => {
-            registered = kind
-          },
-          unregister: (kind) => unregistered.push(kind),
-        },
-        context: (kind) => {
-          expect(kind.scope({ meta: { conversation: 'cli' } }, { conversation: 'cli' }).listened).toBe(true)
-          return source
-        },
-      },
-      effect(run) {
-        const done = run()
-        if (typeof done === 'function') disposers.push(done)
-      },
-    })
-    expect(registered?.kind).toBe('inbox')
-    const built = trigger()
-    feed.push({ ...built, meta: { ...built.meta, conversation: 'other' } })
-    await receivedGate
-    expect(received).toEqual(['inbox:m1:task'])
-    for (const dispose of disposers.reverse()) await dispose()
-    expect(unregistered).toEqual(['inbox'])
-  })
-
-  it('reports setupPending and does not receive while setup is waiting', async () => {
-    const feed = new InboxFeed()
-    const received: string[] = []
-    const reports: InboxHealth[] = []
-    let release: () => void = () => {}
-    const reported = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    apply({
-      inboxFeed: feed,
-      orchestrator: {
-        sources: { register: () => {} },
-        context: () => ({
-          ready: Promise.resolve(),
-          configured: () => false,
-          receive: (item) => {
-            received.push(item.id)
-            return 'stored'
-          },
-          report: (_entry, health) => {
-            reports.push(health)
-            release()
-          },
-        }),
-      },
-      effect(run) {
-        run()
-      },
-    })
-    feed.push(trigger())
-    await reported
-    expect(received).toEqual([])
-    expect(reports[0]).toMatchObject({ state: 'paused', code: 'setupPending' })
-  })
-
-  it('ships a disabled cordis patch and a package export', async () => {
+  it('ships a disabled cordis patch and the file-bridge package export', async () => {
     const patch = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
     expect(patch).toContain('id: daogang-inbox')
     expect(patch).toContain("name: '@daogang/inbox-source'")
@@ -220,85 +157,21 @@ describe('inbox source', () => {
     expect(pkg.peerDependencies?.['@deepseek-ai/cordis']).toBeUndefined()
     expect(pkg.dependencies?.zod).toBe('4.4.3')
     expect(pkg.dsh?.bundle?.patch).toBe('./cordis.patch.yml')
-    const built = await import('../lib/index.js')
-    expect(built.name).toBe('daogang-inbox')
-    expect(typeof built.apply).toBe('function')
-    expect(typeof built.inboxKind.schema.safeParse).toBe('function')
-    expect(built.inboxKind.schema.parse({})).toEqual({ conversation: 'cli' })
-  })
-
-  it('parses config and policy with zod safeParse, and rejects a bad conversation', () => {
-    expect(inboxConfigSchema.safeParse({}).success).toBe(true)
-    expect(inboxConfigSchema.parse({})).toEqual({ conversation: 'cli' })
-    expect(inboxKind.schema.parse({ conversation: 'ops' })).toEqual({ conversation: 'ops' })
-    expect(inboxConfigSchema.safeParse({ conversation: 'Ops' }).success).toBe(false)
-    expect(inboxConfigSchema.safeParse({ conversation: 'cli', extra: true }).success).toBe(false)
-    expect(inboxPolicySchema.parse({})).toEqual({ allowed: [] })
-    expect(inboxPolicySchema.safeParse({ allowed: [{ id: 'cli-user', name: 'cli' }] }).success).toBe(true)
-    expect(inboxPolicySchema.safeParse({ allowed: [{ id: '' }] }).success).toBe(false)
-    expect(inboxKind.policy.schema).toBe(inboxPolicySchema)
-    expect(inboxKind.policy.fields[0]?.key).toBe('allowed')
-  })
-
-  it('registers on a context that rejects unknown fields', async () => {
-    const seen: string[] = []
-    const reports: string[] = []
-    let release: () => void = () => {}
-    const reported = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    const host = {
-      sources: {
-        register: (kind: { kind: string }) => {
-          seen.push(kind.kind)
-          return () => {}
-        },
-      },
-      context() {
-        return {
-          ready: Promise.resolve(),
-          configured: () => false,
-          report(_entry: string, health: { code?: string }) {
-            if (health.code) reports.push(health.code)
-            release()
-          },
-        }
-      },
+    const barrel = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8')
+    expect(barrel).not.toContain('./plugin.ts')
+    const builtSource = readFileSync(new URL('../lib/index.js', import.meta.url), 'utf8')
+    expect(builtSource).not.toContain('plugin.js')
+    const built = await import('../lib/index.js') as {
+      appendTrigger?: unknown
+      watchTriggerLog?: unknown
+      LocalInbox?: unknown
+      inboxTrigger?: unknown
+      apply?: unknown
     }
-    const ctx = new Proxy({
-      orchestrator: host,
-      effect(run: () => void) {
-        run()
-      },
-    }, {
-      get(target, prop, receiver) {
-        if (prop in target) return Reflect.get(target, prop, receiver)
-        throw new Error(`cannot get property "${String(prop)}" without inject`)
-      },
-    })
-    apply(ctx as never)
-    await reported
-    expect(seen).toEqual(['inbox'])
-    expect(reports).toEqual(['setupPending'])
-  })
-
-  it('calls the disposer returned by register', async () => {
-    let disposed = 0
-    const disposers: Array<() => void | Promise<void>> = []
-    apply({
-      orchestrator: {
-        sources: {
-          register: () => () => {
-            disposed += 1
-          },
-        },
-      },
-      effect(run) {
-        const done = run()
-        if (typeof done === 'function') disposers.push(done)
-      },
-    })
-    for (const dispose of disposers.reverse()) await dispose()
-    expect(disposed).toBe(1)
+    expect(typeof built.appendTrigger).toBe('function')
+    expect(typeof built.watchTriggerLog).toBe('function')
+    expect(typeof built.LocalInbox).toBe('function')
+    expect(typeof built.inboxTrigger).toBe('function')
+    expect(built.apply).toBeUndefined()
   })
 })
