@@ -1,0 +1,333 @@
+{
+  "summary": {
+    "suite": "D3 首响延时（真链路）",
+    "at": "2026-11-02T17:21:49.572Z",
+    "dsh": "http://127.0.0.1:3082",
+    "chat_n": 5,
+    "chat_dispatch_p50": 1009,
+    "chat_dispatch_max": 1408,
+    "task_n": 2,
+    "task_dispatch_ms": [
+      1184,
+      1018
+    ],
+    "task_accept_wait_ms": [
+      180100,
+      180174
+    ],
+    "note": "dispatch=CLI 进程内路由+落盘；accept_wait=从 dispatch 返回到 DSH flow.accepted 增量（含桥轮询 1s 粒度+评估）。worker 开工到 PR 的时长见 DSH 工单。",
+    "e2e_note": "事后取证（PR created - dispatch receipt）：任务1 端到端 190s（评估冷启动 ~3min：服务重启后首个评估 tick 慢），任务2 端到端 68s（热态：评估秒级，worker 干活 ~1min）。waitAccepted 已放宽 300s+超时终检。"
+  },
+  "results": [
+    {
+      "kind": "chat",
+      "text": "你好",
+      "dispatchMs": 853,
+      "output": {
+        "target": "main",
+        "urgency": 1,
+        "cards": [
+          {
+            "role": "main",
+            "kind": "chat",
+            "summary": "用户打招呼，闲聊回应"
+          }
+        ],
+        "via": "flash",
+        "reason": "Flash 路由（urgency 落规则默认）",
+        "runtime": "local-inbox",
+        "executor": "local",
+        "audit": {
+          "id": "f969c431-2387-41da-bd06-2f012719e0a6",
+          "file": "C:\\Users\\15657\\AppData\\Local\\Temp\\daogang-bridge\\board.jsonl"
+        },
+        "receipts": [
+          {
+            "status": "accepted",
+            "triggerId": "inbox:mvzisiks-670d9743:chat",
+            "ticketId": null,
+            "session": "main",
+            "lane": "chat",
+            "at": "2026-11-02T17:15:42.220Z",
+            "disposition": "running"
+          }
+        ],
+        "mainReply": {
+          "channel": "main-stub",
+          "session": "main",
+          "text": "主窗先接住：用户打招呼，闲聊回应",
+          "at": "2026-11-02T17:15:42.220Z"
+        },
+        "interrupt": null,
+        "claims": []
+      },
+      "notes": [
+        "accepted"
+      ]
+    },
+    {
+      "kind": "chat",
+      "text": "在吗",
+      "dispatchMs": 731,
+      "output": {
+        "target": "main",
+        "urgency": 1,
+        "cards": [
+          {
+            "role": "main",
+            "kind": "chat",
+            "summary": "用户打招呼询问是否在"
+          }
+        ],
+        "via": "flash",
+        "reason": "Flash 路由（urgency 落规则默认）",
+        "runtime": "local-inbox",
+        "executor": "local",
+        "audit": {
+          "id": "aa0350e8-5cfd-4c8b-87f1-6ecd39336b32",
+          "file": "C:\\Users\\15657\\AppData\\Local\\Temp\\daogang-bridge\\board.jsonl"
+        },
+        "receipts": [
+          {
+            "status": "accepted",
+            "triggerId": "inbox:mvzisj8q-42e5dbf9:chat",
+            "ticketId": null,
+            "session": "main",
+            "lane": "chat",
+            "at": "2026-11-02T17:15:43.082Z",
+            "disposition": "running"
+          }
+        ],
+        "mainReply": {
+          "channel": "main-stub",
+          "session": "main",
+          "text": "主窗先接住：用户打招呼询问是否在",
+          "at": "2026-11-02T17:15:43.082Z"
+        },
+        "interrupt": null,
+        "claims": []
+      },
+      "notes": [
+        "accepted"
+      ]
+    },
+    {
+      "kind": "chat",
+      "text": "今天好安静",
+      "dispatchMs": 1061,
+      "output": {
+        "target": "main",
+        "urgency": 1,
+        "cards": [
+          {
+            "role": "main",
+            "kind": "chat",
+            "summary": "闲聊：觉得今天很安静"
+          }
+        ],
+        "via": "flash",
+        "reason": "Flash 路由（urgency 落规则默认）",
+        "runtime": "local-inbox",
+        "executor": "local",
+        "audit": {
+          "id": "5059749d-b51d-4ed2-885d-f17aab73a64f",
+          "file": "C:\\Users\\15657\\AppData\\Local\\Temp\\daogang-bridge\\board.jsonl"
+        },
+        "receipts": [
+          {
+            "status": "accepted",
+            "triggerId": "inbox:mvzisjse-e7abaee9:chat",
+            "ticketId": null,
+            "session": "main",
+            "lane": "chat",
+            "at": "2026-11-02T17:15:43.790Z",
+            "disposition": "running"
+          }
+        ],
+        "mainReply": {
+          "channel": "main-stub",
+          "session": "main",
+          "text": "主窗先接住：闲聊：觉得今天很安静",
+          "at": "2026-11-02T17:15:43.790Z"
+        },
+        "interrupt": null,
+        "claims": []
+      },
+      "notes": [
+        "accepted"
+      ]
+    },
+    {
+      "kind": "chat",
+      "text": "晚安",
+      "dispatchMs": 1408,
+      "output": {
+        "target": "main",
+        "urgency": 1,
+        "cards": [
+          {
+            "role": "main",
+            "kind": "chat",
+            "summary": "道晚安"
+          }
+        ],
+        "via": "flash",
+        "reason": "Flash 路由（urgency 落规则默认）",
+        "runtime": "local-inbox",
+        "executor": "local",
+        "audit": {
+          "id": "ba4db0a9-b08d-4b90-a886-c6d701970d15",
+          "file": "C:\\Users\\15657\\AppData\\Local\\Temp\\daogang-bridge\\board.jsonl"
+        },
+        "receipts": [
+          {
+            "status": "accepted",
+            "triggerId": "inbox:mvzisklw-7196ef2f:chat",
+            "ticketId": null,
+            "session": "main",
+            "lane": "chat",
+            "at": "2026-11-02T17:15:44.852Z",
+            "disposition": "running"
+          }
+        ],
+        "mainReply": {
+          "channel": "main-stub",
+          "session": "main",
+          "text": "主窗先接住：道晚安",
+          "at": "2026-11-02T17:15:44.852Z"
+        },
+        "interrupt": null,
+        "claims": []
+      },
+      "notes": [
+        "accepted"
+      ]
+    },
+    {
+      "kind": "chat",
+      "text": "早",
+      "dispatchMs": 1009,
+      "output": {
+        "target": "main",
+        "urgency": 1,
+        "cards": [
+          {
+            "role": "main",
+            "kind": "chat",
+            "summary": "打招呼"
+          }
+        ],
+        "via": "flash",
+        "reason": "Flash 路由（urgency 落规则默认）",
+        "runtime": "local-inbox",
+        "executor": "local",
+        "audit": {
+          "id": "a8ecad4a-ddc3-42e5-8300-c9bddb70fa18",
+          "file": "C:\\Users\\15657\\AppData\\Local\\Temp\\daogang-bridge\\board.jsonl"
+        },
+        "receipts": [
+          {
+            "status": "accepted",
+            "triggerId": "inbox:mvzislow-e7c7fb50:chat",
+            "ticketId": null,
+            "session": "main",
+            "lane": "chat",
+            "at": "2026-11-02T17:15:46.256Z",
+            "disposition": "running"
+          }
+        ],
+        "mainReply": {
+          "channel": "main-stub",
+          "session": "main",
+          "text": "主窗先接住：打招呼",
+          "at": "2026-11-02T17:15:46.256Z"
+        },
+        "interrupt": null,
+        "claims": []
+      },
+      "notes": [
+        "accepted"
+      ]
+    },
+    {
+      "kind": "task",
+      "text": "帮我在 docs/notes 里新建一页 2026-11-02 闭环时间线笔记，记录今天从 D1 评测到 worker 开 PR 的关键节点",
+      "dispatchMs": 1184,
+      "output": {
+        "target": "worker",
+        "urgency": 1,
+        "cards": [
+          {
+            "role": "docs",
+            "kind": "task",
+            "summary": "在 docs/notes 新建 2026-11-02 闭环时间线笔记，记录从 D1 评测到 worker 开 PR 的关键节点"
+          }
+        ],
+        "via": "flash",
+        "reason": "Flash 路由",
+        "runtime": "local-inbox",
+        "executor": "local",
+        "audit": {
+          "id": "4e2feea7-4128-4af2-8be1-aa238262e672",
+          "file": "C:\\Users\\15657\\AppData\\Local\\Temp\\daogang-bridge\\board.jsonl"
+        },
+        "receipts": [
+          {
+            "status": "accepted",
+            "triggerId": "inbox:mvzismin-b3f35ea3:task",
+            "ticketId": "1df2180c",
+            "session": "worker-1df2180c",
+            "lane": "task",
+            "at": "2026-11-02T17:15:47.327Z",
+            "disposition": "queued"
+          }
+        ],
+        "mainReply": null,
+        "interrupt": null,
+        "claims": []
+      },
+      "acceptWaitMs": 180100,
+      "accepted": false
+    },
+    {
+      "kind": "task",
+      "text": "帮我起草 CHANGELOG：把 11-02 的 D1/D2/D3 评测、混合裁决、跨进程桥、DSH 环境与首个端到端闭环写成草稿存到 docs/CHANGELOG-draft.md",
+      "dispatchMs": 1018,
+      "output": {
+        "target": "worker",
+        "urgency": 1,
+        "cards": [
+          {
+            "role": "docs",
+            "kind": "task",
+            "summary": "起草 CHANGELOG 草稿并保存到 docs/CHANGELOG-draft.md，涵盖 11-02 的 D1/D2/D3 评测、混合裁决、跨进程桥、DSH"
+          }
+        ],
+        "via": "flash",
+        "reason": "Flash 路由",
+        "runtime": "local-inbox",
+        "executor": "local",
+        "audit": {
+          "id": "cd071fd2-add5-415a-ad22-e0ea0b257aa5",
+          "file": "C:\\Users\\15657\\AppData\\Local\\Temp\\daogang-bridge\\board.jsonl"
+        },
+        "receipts": [
+          {
+            "status": "accepted",
+            "triggerId": "inbox:mvziwidy-448c87d9:task",
+            "ticketId": "e1c169d4",
+            "session": "worker-e1c169d4",
+            "lane": "task",
+            "at": "2026-11-02T17:18:48.598Z",
+            "disposition": "queued"
+          }
+        ],
+        "mainReply": null,
+        "interrupt": null,
+        "claims": []
+      },
+      "acceptWaitMs": 180174,
+      "accepted": false
+    }
+  ]
+}
