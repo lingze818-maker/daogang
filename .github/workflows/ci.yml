@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        node: [22, 24]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # packageManager 字段已钉 pnpm@10.33.4，action-setup 只负责装它（省略 version 防冲突）
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      # inbox source 的构建产物入库（lib/），确保声明文件与实现同步
+      - run: corepack pnpm build:inbox
+      - name: 无未提交变更（忽略行尾差异——Windows 生成产物与 Linux 构建的 CR 差异不算脱节）
+        run: git -c core.fileMode=false diff --ignore-cr-at-eol --exit-code
