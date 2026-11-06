@@ -1,5 +1,7 @@
+import { join } from 'node:path';
 import { z } from 'zod';
 import { inboxScope } from "./trigger.js";
+import { watchTriggerLog } from "./trigger-log.js";
 const CONVERSATION = /^[a-z0-9-]+$/;
 const CONFIG_ERROR = 'inbox 配置 conversation 只允许小写字母、数字和连字符';
 /**
@@ -199,6 +201,16 @@ export function apply(ctx) {
             await running;
         };
     });
+    // 跨进程桥（issue #24）：DAOGANG_HOME 指到 dispatch CLI 的同一 home 时，
+    // tail triggers.jsonl 把接单成功的 trigger 喂进内存 feed。
+    const home = process.env.DAOGANG_HOME?.trim();
+    if (home) {
+        ctx.effect(() => {
+            const controller = new AbortController();
+            const stop = watchTriggerLog(join(home, 'triggers.jsonl'), trigger => feed.push(trigger), controller.signal);
+            return () => { stop(); controller.abort(); };
+        });
+    }
 }
 export const name = 'daogang-inbox';
 export const inject = ['orchestrator'];
