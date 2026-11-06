@@ -18,10 +18,15 @@ export async function routeText(text: string, flash: FlashRouter): Promise<Route
     const raw = await flash.route(text)
     const decision = parseDecision(raw)
     if (decision) {
-      const hybrid = urgencyOf(text) !== decision.urgency
+      const ruleUrgency = urgencyOf(text)
+      const overridden = ruleUrgency !== decision.urgency
+      const paced = ruleUrgency !== 1 // 0/2 都来自显式节奏词；1 是规则默认
+      const reason = overridden
+        ? (paced ? 'Flash 路由（urgency 由节奏词裁决）' : 'Flash 路由（urgency 落规则默认）')
+        : 'Flash 路由'
       return {
-        decision: { ...decision, urgency: urgencyOf(text) },
-        reason: hybrid ? 'Flash 路由（urgency 由节奏词裁决）' : 'Flash 路由',
+        decision: { ...decision, urgency: ruleUrgency },
+        reason,
         via: 'flash',
       }
     }
