@@ -14,7 +14,7 @@ export function appendTrigger(file: string, trigger: InboxTrigger): void {
 }
 
 export interface WatchOptions {
-  /** 轮询间隔毫秒，默认 1000。 */
+  /** 轮询间隔毫秒，默认 250（首响实测：1000ms 粒度占全链路 4.1s 中的 1s）。 */
   intervalMs?: number
   /** 已见 id 的初值（重启续读时传入），默认空。 */
   seen?: Set<string>
@@ -31,7 +31,7 @@ export function watchTriggerLog(
   signal: AbortSignal,
   options: WatchOptions = {},
 ): () => void {
-  const intervalMs = options.intervalMs ?? 1000
+  const intervalMs = options.intervalMs ?? 250
   const seen = options.seen ?? new Set<string>()
   let stopped = false
   const stop = () => { stopped = true }
