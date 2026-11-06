@@ -178,6 +178,7 @@ bash scripts/demo.sh
 - [底座结构笔记](docs/notes/底座结构笔记-2026-11-01.md)
 - [MVP 边界：外围分发器](docs/notes/MVP边界-外围分发器-2026-11-01.md)
 - [HostAdapter：对影优先](docs/notes/HostAdapter-对影-2026-11-01.md)
+- [变更日志（草稿）](docs/CHANGELOG-draft.md)
 
 ## 许可
 
