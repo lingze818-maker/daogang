@@ -5,10 +5,10 @@ import type { InboxTrigger } from './trigger.js';
  * InboxTrigger 的 JSON。读侧按 id 去重：LocalInbox 与 orchestrator 的
  * 接单都以 trigger id 幂等，桥本身只需保证不重复投递。
  */
-/** dispatcher 侧：接单成功（accepted）后追加。坏行由读侧跳过，写侧不校验。 */
-export declare function appendTrigger(file: string, trigger: InboxTrigger): void;
+/** dispatcher 侧：接单成功（accepted）后追加；超限先轮转。写侧不校验内容。 */
+export declare function appendTrigger(file: string, trigger: InboxTrigger, rotateBytes?: number): void;
 export interface WatchOptions {
-    /** 轮询间隔毫秒，默认 1000。 */
+    /** 轮询间隔毫秒，默认 250（首响实测：1000ms 粒度占全链路 4.1s 中的 1s）。 */
     intervalMs?: number;
     /** 已见 id 的初值（重启续读时传入），默认空。 */
     seen?: Set<string>;

@@ -47,7 +47,7 @@
 - 闲聊走 `mainReply`（通道 `main-stub`），和任务腿分开。任务排队或失败时，主窗回复已经留下。
 - 更高优先级打断正在忙的工单：那一行改成 `queued`，交接备注不超过 200 字。同级或更低只排队。
 - 接单失败追加 `"status":"claim"` 的招领行。`DAOGANG_FAIL_LANE=task` 用来演示离线或超时。
-- `bash scripts/demo.sh` 把上面串成一次终端演示。记录在 [docs/demo/peripheral.cast](docs/demo/peripheral.cast)。GIF 还没有。
+- `bash scripts/demo.sh` 把上面串成一次终端演示。记录在 [docs/demo/peripheral.cast](docs/demo/peripheral.cast)，GIF 版 [docs/demo/peripheral.gif](docs/demo/peripheral.gif)（重生成见 [scripts/make-demo-gif.md](scripts/make-demo-gif.md)）。
 
 **B2 仍半开。** 默认没有真 DSH 会话。可选根目录只把 `start` / `deliver` 的 enqueue 接到站位 effects，不拉起 worker，也不写底座 SQLite。要看 `effect` 表和主会话探测，跑下面的检查脚本。Node 24 上，`effects.start` 之后公开 `SessionStore.create` 能得到同一 `masterId` 的内存 `Session`；`SessionController` 仍硬挡。
 
@@ -166,7 +166,7 @@ bash scripts/demo.sh
 
 脚本里发生四件事：先派一件普通任务；再派一句更急的 mixed（输出里有 `mainReply`，同时把上一张工单改成排队并写交接备注）；再派一件不急的，它只排队、不打断；最后用 `DAOGANG_FAIL_LANE=task` 让任务腿失败，看板上多一行 `"status":"claim"`。`pnpm board` 打在最后。
 
-同一段输出也录在 `docs/demo/peripheral.cast`。装了 asciinema 时可以 `asciinema play docs/demo/peripheral.cast`。需要重录时跑 `node scripts/record-cast.mjs`。没有 GIF。
+同一段输出也录在 `docs/demo/peripheral.cast`。装了 asciinema 时可以 `asciinema play docs/demo/peripheral.cast`。需要重录时跑 `node scripts/record-cast.mjs`。GIF 版 `docs/demo/peripheral.gif`，重生成跑 agg（见 `scripts/make-demo-gif.md`）。
 
 ## 文档
 
