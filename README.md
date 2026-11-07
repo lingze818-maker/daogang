@@ -39,7 +39,7 @@
 
 分发器先放在外围：自己做路由、打断和 mixed 拆分，再经 Source 注入。站稳之后再考虑收成 Cordis 插件。
 
-## 外围可用版 `0.1.0-peripheral`
+## 外围可用版 `0.2.0-peripheral`
 
 这一版是外围 CLI，不是挂进 DeepSeek Harness 的插件。没有 API key 也能跑。
 
@@ -68,7 +68,7 @@
   - **混合裁决（Flash 出 target/cards + 规则节奏词裁 urgency）联合 0.970**，已进 `routeText`（#20）
   - D3 打断恢复：12 用例三层全过（pass 1.000），含五字段无损与落盘 roundtrip
   - 边界不变：B2 仍无活 worker Session；对影 loopback 真调（inject+用户话钩子）已通过
-- 版本号写在根 `package.json` 的 `0.1.0-peripheral`。这是外围可用版，不是底座插件发布。
+- 版本号写在根 `package.json` 的 `0.2.0-peripheral`。这是外围可用版，不是底座插件发布。
 
 ## 快速试跑
 
