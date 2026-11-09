@@ -93,7 +93,7 @@
 
 ## 已知边界
 
-- B2 的适配器路径仍半开：DSH 路径仅 enqueue；活 Session / 真模型未验（#34 破案后环境已可复现，待下轮验证）。
+- ~~B2 活 Session / 真模型未验~~ **已验（2026-11-09）**：dispatch→feeder→requeue→ticket→worker assignment completed（19s），产物落盘可指认——记录见 docs/notes/读侧验活-三段组合-2026-11-09.md，收口笔记 docs/notes/活Session收口-2026-11-09.md。
 - ~~读侧空：#43 移除 plugin 入口后 main 上无人 tail `triggers.jsonl`~~ 已由 `packages/trigger-feeder`（三段组合：公开 Store 写入 + requeue）补上。
 - D3 只量打断语义，不含「恢复后继续干」。
 - 五维第 5 项（跨会话指代）待上游 threadContext。
