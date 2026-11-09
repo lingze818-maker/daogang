@@ -12,5 +12,6 @@
 | [notes/HostAdapter-对影-2026-11-01.md](./notes/HostAdapter-对影-2026-11-01.md) | 对影六条口径（鎏虹 2026-11-01，main `5662082`）。#59 已合入；进窗与用户话 loopback 真调通过 |
 | [notes/闭环时间线-2026-11-02.md](./notes/闭环时间线-2026-11-02.md) | 从 D1 评测到首个 DSH worker PR（#26）的时间线、闭环路径与未完成边界 |
 | [notes/观察记录-issue34-2026-11-03.md](./notes/观察记录-issue34-2026-11-03.md) | issue #34：DSH 重启后 trigger 被 receive / judge 但不落 candidate；11-04 清库实验指向 source 配置未持久化 |
+| [notes/复现实验记录-2026-11-05.md](./notes/复现实验记录-2026-11-05.md) | 11-04 假设的复现实验：配置重填 + 冷启动后 received 4 / judged 4 / accepted 1，端到端走通；配置持久化仍是遗留 |
 
 上游：[deepseek-ai/dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype)。该仓 Issues 已关闭，待验证项记在结构笔记 §7。
