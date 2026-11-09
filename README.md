@@ -39,7 +39,7 @@
 
 分发器先放在外围：自己做路由、打断和 mixed 拆分，再经 Source 注入。站稳之后再考虑收成 Cordis 插件。
 
-## 外围可用版 `0.1.0-peripheral`
+## 外围可用版 `0.2.0-peripheral`
 
 这一版是外围 CLI，不是挂进 DeepSeek Harness 的插件。没有 API key 也能跑。
 
@@ -51,13 +51,15 @@
 - 接单失败追加 `"status":"claim"` 的招领行。`DAOGANG_FAIL_LANE=task` 用来演示离线或超时。
 - `bash scripts/demo.sh` 把上面串成一次终端演示。记录在 [docs/demo/peripheral.cast](docs/demo/peripheral.cast)，GIF 版 [docs/demo/peripheral.gif](docs/demo/peripheral.gif)（重生成见 [scripts/make-demo-gif.md](scripts/make-demo-gif.md)）。
 
-**B2 仍半开。** 默认没有真 DSH 会话。可选根目录只把 `start` / `deliver` 的 enqueue 接到站位 effects，不拉起 worker，也不写底座 SQLite。要看 `effect` 表和主会话探测，跑下面的检查脚本。Node 24 上，`effects.start` 之后公开 `SessionStore.create` 能得到同一 `masterId` 的内存 `Session`；`SessionController` 仍硬挡。
+**B2 活 Session 已于 2026-11-09 验过。** 链路是 dispatch → `packages/trigger-feeder` → requeue → ticket → worker assignment **completed（约 19s，真模型）**，产物可指认，记录在 [docs/notes/活Session收口-2026-11-09.md](docs/notes/活Session收口-2026-11-09.md)。默认 CLI 仍可无密钥走 `LocalExecutor`；活链需要本机 DSH 已经在跑，再加上 feeder。
+
+可选根目录的适配器仍只把 `start` / `deliver` 的 enqueue 接到站位 effects，不拉起 worker，也不写底座 SQLite。要看 `effect` 表和主会话探测，跑下面的检查脚本。Node 24 上，`effects.start` 之后公开 `SessionStore.create` 能得到同一 `masterId` 的内存 `Session`；`SessionController` 仍硬挡。这些检查脚本不到真实模型。
 
 - 默认执行口是 `LocalExecutor`（`packages/dispatcher/src/executor.ts`）。它把派工记在 `.daogang/executor.json`，会话名是 `worker-<ticketId>`。不需要密钥，也不需要 clone 底座。
 - `DAOGANG_EXECUTOR=dsh` 且没设 `DAOGANG_DSH_ROOT`：和以前一样，抛出「DSH 未接线」，这次派工落成招领。
 - 设了 `DAOGANG_DSH_ROOT`（且没有把执行口显式锁成 `local`）：适配器按路径加载该克隆里的 `DshExecutor`，调用 `start` → `enqueue('launch', assignmentId, { ticketId, assignmentId })`，`deliver` → `enqueue('delivery', ticketId, { ticketId })`。入队记在到岗侧的站位 effects 上。这条路径不打开底座 `Store`，也不进私有 `launch()`。克隆加载失败同样落招领。
 - 公开 enqueue 载荷只有 id，放不下卡片。inbox Trigger 把本腿卡片写进 `text` 和 `meta.cards`（标记 `[daogang-cards]`）。上游 `triggerMessage` 读的是 `text`，不读 `meta`。explicit 接单时 `ticketExecution` 把 accept 的 `note` 写进 `execution.assignment`。`inputMessage` 对文本输入原样返回。这三份是私有 `launch()` / `deliverInput()` 才会交给 `sessions.prompt` 的材料。适配器不调用那两个私有方法。`scripts/check-runtime.mjs` 用 stub `sessions` 证明：票数据齐全时，`Effects.start()` 的 handler 会把同一段卡片送进 `sessions.prompt`。那次调用不到真实模型。
-- inbox Source 可以按 [packages/inbox-source/README.md](packages/inbox-source/README.md) 用 `file:` 或 `link:` 挂到本机 DSH 克隆，默认 `disabled: true`。本地 `LocalInbox` 仍是 CLI 的接单路径。`configured()` 在空 GitHub 配置下为 false，这一点在上游克隆里核对过；Cordis 整链进程和活 worker Session **未验证**。
+- inbox Source 可以按 [packages/inbox-source/README.md](packages/inbox-source/README.md) 用 `file:` 或 `link:` 挂到本机 DSH 克隆，默认 `disabled: true`。本地 `LocalInbox` 仍是 CLI 的接单路径。`configured()` 在空 GitHub 配置下为 false，这一点在上游克隆里核对过。这还不是完整的 Cordis 插件发布。活 worker Session 不由这条挂载拉起；2026-11-09 验过的是 feeder 那条活链。
 
 ## 状态
 
@@ -67,8 +69,16 @@
   - D2 Flash 路由：target 0.970（trap 0.900）/ urgency 0.870，100 条全实走零回落
   - **混合裁决（Flash 出 target/cards + 规则节奏词裁 urgency）联合 0.970**，已进 `routeText`（#20）
   - D3 打断恢复：12 用例三层全过（pass 1.000），含五字段无损与落盘 roundtrip
-  - 边界不变：B2 仍无活 worker Session；对影 loopback 真调（inject+用户话钩子）已通过
-- 版本号写在根 `package.json` 的 `0.1.0-peripheral`。这是外围可用版，不是底座插件发布。
+  - 当日边界：活 worker Session 当时还没有（2026-11-09 已验，见下）；对影 loopback 真调（inject+用户话钩子）已通过
+- 版本号写在根 `package.json` 的 `0.2.0-peripheral`（2026-11-06 拍板的版本 B）。这是外围可用版，不是完整的 Cordis 插件发布。
+- 2026-11-09：#48 读侧（`packages/trigger-feeder`）与活 Session 收口。链路 dispatch → feeder → requeue → ticket → worker assignment **completed（约 19s，真模型）**，产物可指认（[收口笔记](docs/notes/活Session收口-2026-11-09.md)）。版本 B 已落地，版本号仍是 `0.2.0-peripheral`。
+
+仍在的边界：
+
+- 正式部署要让 dispatch 与 feeder 的 `DAOGANG_HOME` 字节级一致，并设置 `DAOGANG_FEEDER_STATE`（或用 CLI 默认的 `DAOGANG_HOME/feeder-state.json`）；feeder 用 `node --experimental-transform-types packages/trigger-feeder/src/cli.ts` 启动。
+- worker 进程 env 里的 `DAOGANG_HOME` 可能与 dispatch/feeder 不同源（见收口笔记）。任务文本里不要用这个变量指代路径。
+- 这不是完整的 Cordis 插件发布。inbox Source 默认 `disabled: true`。
+- 五维第 5 项（跨会话指代）仍待上游 threadContext。D3 只量打断语义，不含「恢复后继续干」。
 
 ## 快速试跑
 
@@ -108,6 +118,8 @@ pnpm listen
 ### 可选：指向本机 DSH 克隆
 
 底座仓库单独 clone，不要复制进本仓。`@deepseek-ai/cordis` 与 `@deepseek-ai/dsh-*` 不是本仓的 dependencies，也不是 peerDependencies（pnpm 会把可选 peer 装进锁文件）。inbox Source 的挂载步骤、默认关闭的补丁，以及无密钥核对了什么，写在 [packages/inbox-source/README.md](packages/inbox-source/README.md)。
+
+这条适配器路径不是 2026-11-09 验过的活链。活链是 dispatch 写下 `triggers.jsonl`，由 `packages/trigger-feeder` 写入底座再 requeue。
 
 ```bash
 # 终端 A：上游自己的目录，按它的 README 安装依赖。本仓测试不需要这一步。
@@ -151,11 +163,11 @@ DAOGANG_DSH_ROOT=/绝对路径/dsh-superagent-prototype node scripts/check-runti
 
 若以后 `SessionController` 激活并 `create` 出句柄，`outcome` 会变成 `session-controller`，退出码仍是 0。意外抛错才是非 0。
 
-下面几件仍然 **未验证**：
+下面几件是 `scripts/check-runtime.mjs` 自己碰不到的。2026-11-09 的活链是另一条（dispatch → `packages/trigger-feeder` → requeue → ticket → worker assignment completed，约 19s，真模型），不在这个脚本里：
 
-- 正在跑的 superagent 进程。Runtime 探测用的 webServer 只登记、不监听
-- `sessionController` 管的活主会话，以及 `worker-<ticketId>` Session。`Runtime.initialize` 的主会话 `ensure` 仍是桩。`SessionStore.create` 得到的是内存里的 `Session`，没有经过 `sessionController.create` / `rename`，也没有 Agent 循环。launch 路径的 stub `sessions.ensure` 同样不创建 DSH Session
-- 卡片文本有没有进入一次真实的 worker 模型请求。stub `sessions.prompt` 记下了首条消息，没有调用 `llm`。configured 与 session 路径上 `AgentDelivery.send` 是 0 次，也没有 `fetch`
+- 这个 Runtime 探测用的 webServer 只登记、不监听。它不代表收口那次已经在跑的 DSH 进程（全程已在跑，没有为验活拉起或重启）
+- `sessionController` 管的活主会话。`Runtime.initialize` 的主会话 `ensure` 仍是桩。`SessionStore.create` 得到的是内存里的 `Session`，没有经过 `sessionController.create` / `rename`，也没有 Agent 循环。launch 路径的 stub `sessions.ensure` 同样不创建 DSH Session。脚本里没有那次活链的 `worker-<ticketId>` Session
+- 卡片文本有没有进入这个脚本里的真实模型请求。stub `sessions.prompt` 记下了首条消息，没有调用 `llm`。configured 与 session 路径上 `AgentDelivery.send` 是 0 次，也没有 `fetch`。真模型请求发生在 feeder 活链上，不在这里
 - 真实的 `gh` 身份。`configured()===true` 靠夹具 stdout，不是 GitHub 账号
 
 ## 接着试
@@ -179,6 +191,7 @@ bash scripts/demo.sh
 - [MVP 边界：外围分发器](docs/notes/MVP边界-外围分发器-2026-11-01.md)
 - [HostAdapter：对影优先](docs/notes/HostAdapter-对影-2026-11-01.md)
 - [变更日志](docs/CHANGELOG.md)
+- [活 Session 收口（2026-11-09）](docs/notes/活Session收口-2026-11-09.md)
 
 ## 许可
 
@@ -190,11 +203,15 @@ bash scripts/demo.sh
 
 ### 现在能用到什么程度？
 
-外围演示已经能跑：`pnpm dispatch` / `pnpm listen` 负责派单、打断、招领和留痕，闲聊回本地 `main-stub`。B2 仍半开：默认 `LocalExecutor` 只把派工记在 `.daogang/executor.json`，还没有活的 DSH worker Session。
+外围演示已经能跑：`pnpm dispatch` / `pnpm listen` 负责派单、打断、招领和留痕，闲聊回本地 `main-stub`。没设密钥时走 `LocalExecutor`，派工记在 `.daogang/executor.json`。活 Session 已于 2026-11-09 验过：dispatch → `packages/trigger-feeder` → requeue → ticket → worker assignment **completed（约 19s，真模型）**，产物可指认（[收口笔记](docs/notes/活Session收口-2026-11-09.md)）。这条活链需要本机 DSH 已经在跑，再加上 feeder；不是默认无密钥路径。
+
+宿主方面：对影的进窗和用户话钩子已接线，zcode 的 agent-board 宿主已合入，Codex 还没开始。
+
+仍在的边界：正式部署要让 `DAOGANG_HOME` 在 dispatch 与 feeder 之间字节级一致，并带上 `DAOGANG_FEEDER_STATE` 和 `--experimental-transform-types`；worker 进程自己的 `DAOGANG_HOME` 可能与这两边不同源。这还不是完整的 Cordis 插件发布。五维第 5 项（跨会话指代）仍待上游 threadContext。
 
 ### 需要 API key 或先 clone 底座吗？
 
-都不用。没设 `DEEPSEEK_API_KEY` 时按关键词兜底；默认执行口是 `local`，不需要 `DAOGANG_DSH_ROOT`，`pnpm test` 也不需要密钥。只有想试适配器时才 clone 底座并设置这个变量；它只核对 `launch` / `delivery` 进了 `enqueue`，不拉起 worker。
+外围和无密钥演示都不用。没设 `DEEPSEEK_API_KEY` 时按关键词兜底；默认执行口是 `local`，不需要 `DAOGANG_DSH_ROOT`，`pnpm test` 也不需要密钥。想试适配器时才 clone 底座并设置 `DAOGANG_DSH_ROOT`；那条只核对 `launch` / `delivery` 进了 `enqueue`。2026-11-09 验过的活链是另一条：DSH 已在跑，再加 `packages/trigger-feeder`。
 
 ### 和 dsh-superagent-prototype 是什么关系？
 
@@ -208,7 +225,7 @@ bash scripts/demo.sh
 
 会，两边共用同一个 `DAOGANG_HOME` 时。CLI 仍是独立进程，`LocalInbox` 只落接单回执；接单成功后把 trigger 追加到 `triggers.jsonl`，`watchTriggerLog` 推进内存 feed。跨进程桥已随 [#25](https://github.com/lingze818-maker/daogang/pull/25) 合入（关闭 [#24](https://github.com/lingze818-maker/daogang/issues/24)）。
 
-读侧（#34 三段组合）：`packages/trigger-feeder` 常驻尾随同一个 `triggers.jsonl`，把新行经 DSH 公开 `Store.triggers.save` 写入 orchestrator 库，再调 `POST triggers/:id/requeue` 触发重新评估；DSH 没在跑时进重试队列，服务回来自动补投。#43 移除 plugin 入口后，main 上由这一包负责读侧。
+读侧（#34 三段组合，[#48](https://github.com/lingze818-maker/daogang/pull/48) 已合入）：`packages/trigger-feeder` 常驻尾随同一个 `triggers.jsonl`，把新行经 DSH 公开 `Store.triggers.save` 写入 orchestrator 库，再调 `POST triggers/:id/requeue` 触发重新评估；DSH 没在跑时进重试队列，服务回来自动补投。#43 移除 plugin 入口后，main 上由这一包负责读侧。2026-11-09 的活 Session 走的就是这条。正式部署要让 dispatch 和 feeder 的 `DAOGANG_HOME` 字节级一致，并带上 `DAOGANG_FEEDER_STATE`（或用 CLI 默认的 `DAOGANG_HOME/feeder-state.json`）；feeder 启动要用 `node --experimental-transform-types`。worker 进程自己的 `DAOGANG_HOME` 可能和 dispatch/feeder 不同源，任务文本里不要用这个变量指代路径（见收口笔记）。
 
 ### 数据写在哪？会进仓库吗？
 
