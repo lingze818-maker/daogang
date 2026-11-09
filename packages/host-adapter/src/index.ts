@@ -31,6 +31,7 @@ export {
   type DuiyingUserPort,
 } from './user-hook.ts'
 export { LocalCliHost } from './local-cli.ts'
+import { ZcodeHost } from './zcode-host.ts'
 export { ZcodeHost, type ZcodeHostOptions } from './zcode-host.ts'
 
 /** 默认 `local-cli`。对影要显式传入，并且需要到岗自己的目录来放映射。 */

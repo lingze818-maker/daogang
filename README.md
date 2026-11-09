@@ -208,6 +208,8 @@ bash scripts/demo.sh
 
 会，两边共用同一个 `DAOGANG_HOME` 时。CLI 仍是独立进程，`LocalInbox` 只落接单回执；接单成功后把 trigger 追加到 `triggers.jsonl`，`watchTriggerLog` 推进内存 feed。跨进程桥已随 [#25](https://github.com/lingze818-maker/daogang/pull/25) 合入（关闭 [#24](https://github.com/lingze818-maker/daogang/issues/24)）。
 
+读侧（#34 三段组合）：`packages/trigger-feeder` 常驻尾随同一个 `triggers.jsonl`，把新行经 DSH 公开 `Store.triggers.save` 写入 orchestrator 库，再调 `POST triggers/:id/requeue` 触发重新评估；DSH 没在跑时进重试队列，服务回来自动补投。#43 移除 plugin 入口后，main 上由这一包负责读侧。
+
 ### 数据写在哪？会进仓库吗？
 
 审计行在 `.daogang/board.jsonl`，接单回执在 `.daogang/inbox.json`，派工记录在 `.daogang/executor.json`，目录可用 `DAOGANG_HOME` 改。`.daogang/` 已在 `.gitignore` 中，真实对话样本不提交。
